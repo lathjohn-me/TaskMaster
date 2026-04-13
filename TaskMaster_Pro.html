@@ -503,23 +503,29 @@ function loadGapi(){
   s1.onload=()=>gapi.load('client',async()=>{await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});gapiOk=true;});
   document.head.appendChild(s1);
   const s2=document.createElement('script');s2.src='https://accounts.google.com/gsi/client';
-  s2.onload=()=>{if(!cfg.gcid)return;tclient=google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:SCOPE,callback:async r=>{if(r.error){toast('Auth error: '+r.error);return;}const tokenData={token:r.access_token,expires:Date.now()+(r.expires_in-60)*1000};localStorage.setItem('tm_gtoken',JSON.stringify(tokenData));gapi.client.setToken({access_token:r.access_token});setDS('syncing','Syncing...');await syncDrive();}});
+  s2.onload=()=>{if(!cfg.gcid)return;tclient=google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:SCOPE,callback:async r=>{if(r.error){toast('Auth error: '+r.error);return;}const tokenData={token:r.access_token,expires:Date.now()+(r.expires_in-60)*1000};localStorage.setItem('tm_gtoken',JSON.stringify(tokenData));gapi.client.setToken({access_token:r.access_token});setDS('syncing','Syncing...');await syncDrive(false);}});
     // Restore saved token if still valid
     const saved=localStorage.getItem('tm_gtoken');
-    if(saved){try{const td=JSON.parse(saved);if(td.expires>Date.now()){gapi.client.setToken({access_token:td.token});setDS('syncing','Syncing...');setTimeout(async()=>{await syncDrive();},800);}else{localStorage.removeItem('tm_gtoken');}}catch(e){localStorage.removeItem('tm_gtoken');}}
+    if(saved){try{const td=JSON.parse(saved);if(td.expires>Date.now()){gapi.client.setToken({access_token:td.token});setDS('syncing','Syncing...');setTimeout(async()=>{await syncDrive(false);},800);}else{localStorage.removeItem('tm_gtoken');}}catch(e){localStorage.removeItem('tm_gtoken');}}
   };
   document.head.appendChild(s2);
 }
 
 function connectDrive(){const c=document.getElementById('scid').value.trim();if(c)cfg.gcid=c;if(!cfg.gcid){toast('Enter Client ID first.');return;}localStorage.setItem('tm_cfg',JSON.stringify(cfg));if(!tclient){loadGapi();setTimeout(()=>tclient&&tclient.requestAccessToken(),2500);}else tclient.requestAccessToken();}
 function disconnectDrive(){try{if(gapi.client.getToken())google.accounts.oauth2.revoke(gapi.client.getToken().access_token);gapi.client.setToken(null);}catch(e){}dfid=null;localStorage.removeItem('tm_dfid');localStorage.removeItem('tm_gtoken');setDS('','Not connected');document.getElementById('hlabel').textContent='local';toast('Drive disconnected.');}
-async function syncNow(){if(!tclient||!gapi.client.getToken()){connectDrive();return;}setDS('syncing','Syncing...');await syncDrive();}
+async function syncNow(){if(!tclient||!gapi.client.getToken()){connectDrive();return;}setDS('syncing','Syncing...');await syncDrive(true);}
 
-async function syncDrive(){
+async function syncDrive(forcePush){
   if(!gapiOk||!gapi.client.getToken())return;
   try{
     if(!dfid)dfid=await findCreate();
-    if(dfid){await push();setDS('on','Synced');document.getElementById('hlabel').textContent='synced';toast('Synced ✓');}
+    if(dfid){
+      if(forcePush){
+        await push();setDS('on','Synced');document.getElementById('hlabel').textContent='synced';toast('Synced ✓');
+      } else {
+        await pull(dfid);setDS('on','Synced');document.getElementById('hlabel').textContent='synced';
+      }
+    }
   }catch(e){setDS('','Error');toast('Sync error: '+e.message);}
 }
 
