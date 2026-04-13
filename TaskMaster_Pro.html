@@ -504,9 +504,8 @@ function loadGapi(){
   document.head.appendChild(s1);
   const s2=document.createElement('script');s2.src='https://accounts.google.com/gsi/client';
   s2.onload=()=>{if(!cfg.gcid)return;tclient=google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:SCOPE,callback:async r=>{if(r.error){toast('Auth error: '+r.error);return;}const tokenData={token:r.access_token,expires:Date.now()+(r.expires_in-60)*1000};localStorage.setItem('tm_gtoken',JSON.stringify(tokenData));gapi.client.setToken({access_token:r.access_token});setDS('syncing','Syncing...');await syncDrive(false);}});
-    // Restore saved token if still valid
     const saved=localStorage.getItem('tm_gtoken');
-    if(saved){try{const td=JSON.parse(saved);if(td.expires>Date.now()){gapi.client.setToken({access_token:td.token});setDS('syncing','Syncing...');setTimeout(async()=>{await syncDrive(false);},800);}else{localStorage.removeItem('tm_gtoken');}}catch(e){localStorage.removeItem('tm_gtoken');}}
+    if(saved){try{const td=JSON.parse(saved);if(td.expires>Date.now()){gapi.client.setToken({access_token:td.token});setDS('syncing','Syncing...');setTimeout(async()=>{await syncDrive(false);},800);}else{localStorage.removeItem('tm_gtoken');setTimeout(()=>{try{tclient.requestAccessToken({prompt:'none'});}catch(e){setDS('','Tap Connect Drive');}},1200);}}catch(e){localStorage.removeItem('tm_gtoken');}}
   };
   document.head.appendChild(s2);
 }
