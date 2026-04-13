@@ -549,6 +549,47 @@ async function pull(fid){
   }
 }
 
+// Merge-then-push: pull Drive first, merge with local changes, then push combined result
+async function mergeAndPush(){
+  if(!dfid)return;
+  try{
+    const r=await gapi.client.drive.files.get({fileId:dfid,alt:'media'});
+    if(r.body){
+      const remote=JSON.parse(r.body);
+      const remoteTasks=remote.tasks||[];
+      // Build a map of remote tasks by id
+      const remoteMap={};
+      remoteTasks.forEach(t=>remoteMap[t.id]=t);
+      // Build a map of local tasks by id
+      const localMap={};
+      tasks.forEach(t=>localMap[t.id]=t);
+      // Merge: for tasks on both sides, keep the most recently updated
+      // For tasks only on one side, keep them
+      const allIds=new Set([...Object.keys(remoteMap),...Object.keys(localMap)]);
+      const merged=[];
+      allIds.forEach(id=>{
+        const local=localMap[id];
+        const remote=remoteMap[id];
+        if(local&&remote){
+          // Keep whichever was updated more recently
+          const lu=new Date(local.updated||0);
+          const ru=new Date(remote.updated||0);
+          merged.push(lu>=ru?local:remote);
+        } else {
+          merged.push(local||remote);
+        }
+      });
+      tasks=merged;
+      localStorage.setItem('tm_tasks',JSON.stringify(tasks));
+      dash();render();
+    }
+  }catch(e){
+    // If pull fails, push what we have anyway
+    console.warn('Merge pull failed, pushing local:',e);
+  }
+  await push();
+}
+
 async function push(){
   if(!dfid)return;
   await gapi.client.request({path:`/upload/drive/v3/files/${dfid}`,method:'PATCH',params:{uploadType:'media'},headers:{'Content-Type':'application/json'},body:JSON.stringify({tasks,cats,saved:new Date().toISOString()})});
@@ -561,7 +602,7 @@ function persist(){
   localStorage.setItem('tm_tasks',JSON.stringify(tasks));
   localStorage.setItem('tm_cfg',JSON.stringify(cfg));
   localStorage.setItem('tm_cats',JSON.stringify(cats));
-  if(gapiOk&&dfid){try{if(gapi.client.getToken()){setDS('syncing','Syncing...');push().then(()=>setDS('on','Synced')).catch(()=>setDS('','Error'));}}catch(e){}}
+  if(gapiOk&&dfid){try{if(gapi.client.getToken()){setDS('syncing','Syncing...');mergeAndPush().then(()=>setDS('on','Synced')).catch(()=>setDS('','Error'));}}catch(e){}}
 }
 
 // ── Recurrence ────────────────────────────────────────────────────────
