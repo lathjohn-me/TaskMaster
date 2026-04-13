@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskMaster Pro</title>
+<style>
+  :root {
+    --personal: #4F86C6; --personal-bg: #EBF3FB; --personal-text: #1a4a7a;
+    --work: #C8860A; --work-bg: #FFF8EC; --work-text: #7a4f00;
+    --finance: #5BAD6F; --finance-bg: #EAF6EE; --finance-text: #1a5c2a;
+    --projects: #C45FAA; --projects-bg: #F9EDF6; --projects-text: #6a1a5a;
+    --high: #E24B4A; --high-bg: #FCEBEB;
+    --medium: #EF9F27; --medium-bg: #FAEEDA;
+    --low: #639922; --low-bg: #EAF3DE;
+    --radius: 10px; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F4F6FA; color: #1a1a2e; min-height: 100vh; }
+  .app-header { background: linear-gradient(135deg, #1F3864 0%, #2E75B6 100%); color: white; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+  .app-header h1 { font-size: 1.4rem; font-weight: 700; }
+  .app-header h1 span { opacity: 0.7; font-weight: 400; font-size: 0.88rem; margin-left: 0.5rem; }
+  .header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 0.45rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .btn-white { background: white; color: #1F3864; } .btn-white:hover { background: #EBF3FB; }
+  .btn-ghost { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); } .btn-ghost:hover { background: rgba(255,255,255,0.25); }
+  .btn-danger { background: #E24B4A; color: white; } .btn-danger:hover { background: #c03a39; }
+  .btn-success { background: #5BAD6F; color: white; } .btn-success:hover { background: #4a9a5c; }
+  .btn-navy { background: #1F3864; color: white; } .btn-navy:hover { background: #2E75B6; }
+  .drive-status { font-size: 0.75rem; padding: 0.3rem 0.7rem; border-radius: 20px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 0.4rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #aaa; flex-shrink: 0; }
+  .dot.on { background: #5BAD6F; } .dot.sync { background: #E8A838; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.35} }
+  .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  /* Dashboard */
+  .db-title { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 0.75rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(125px,1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+  .sc { background: white; border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); text-align: center; border-top: 3px solid #eee; }
+  .sc.ov { border-top-color:#E24B4A; } .sc.sn { border-top-color:#EF9F27; } .sc.ip { border-top-color:#4F86C6; } .sc.dn { border-top-color:#5BAD6F; } .sc.tt { border-top-color:#C45FAA; } .sc.rc { border-top-color:#7B68EE; }
+  .sn2 { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .sl { font-size: 0.71rem; color: #888; margin-top: 0.2rem; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+  @media(max-width:600px){.charts-row{grid-template-columns:1fr;}}
+  .chart-card { background: white; border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .chart-card h3 { font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 0.75rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; }
+  .bar-lbl { width: 74px; font-size: 0.75rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; background: #f0f0f0; border-radius: 4px; height: 15px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; min-width: 2px; }
+  .bar-n { font-size: 0.72rem; color: #888; min-width: 16px; text-align: right; }
+  .pie-wrap { display: flex; align-items: center; gap: 1rem; }
+  .pie-leg { display: flex; flex-direction: column; gap: 0.4rem; }
+  .pie-li { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #555; }
+  .pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .tab { padding: 0.4rem 1rem; border-radius: 20px; border: 2px solid transparent; cursor: pointer; font-size: 0.84rem; font-weight: 600; background: white; color: #555; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab:hover { transform: translateY(-1px); }
+  .tab.active { color: white; }
+  .tab[data-cat="All"].active { background: #1F3864; }
+  .tab[data-cat="Personal"].active { background: var(--personal); }
+  .tab[data-cat="Work"].active { background: var(--work); }
+  .tab[data-cat="Finance"].active { background: var(--finance); }
+  .tab[data-cat="Projects"].active { background: var(--projects); }
+  .tab[data-cat="History"].active { background: #7B68EE; }
+  /* Toolbar */
+  .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .toolbar select, .toolbar input[type="text"] { padding: 0.4rem 0.7rem; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.84rem; background: white; color: #1a1a2e; }
+  .toolbar input[type="text"] { flex: 1; min-width: 150px; }
+  .sc-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.81rem; color: #555; cursor: pointer; white-space: nowrap; margin-left: auto; }
+  /* Task cards */
+  .task-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .tc { background: white; border-radius: var(--radius); padding: 0.85rem 1rem; box-shadow: var(--shadow); border-left: 4px solid #ddd; display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: start; transition: all 0.2s; }
+  .tc:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-1px); }
+  .tc.done { opacity: 0.6; background: #f9fafb; }
+  .tc.od { box-shadow: 0 0 0 1px rgba(226,75,74,0.25), var(--shadow); }
+  .tc[data-cat="Personal"] { border-left-color: var(--personal); }
+  .tc[data-cat="Work"]     { border-left-color: var(--work); }
+  .tc[data-cat="Finance"]  { border-left-color: var(--finance); }
+  .tc[data-cat="Projects"] { border-left-color: var(--projects); }
+  .chk { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
+  .chk.on { background: #5BAD6F; border-color: #5BAD6F; }
+  .t-body { min-width: 0; }
+  .t-name { font-size: 0.94rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.3rem; word-break: break-word; }
+  .tc.done .t-name { text-decoration: line-through; color: #999; }
+  .t-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .b { font-size: 0.7rem; font-weight: 600; padding: 0.18rem 0.48rem; border-radius: 12px; white-space: nowrap; }
+  .b[data-cat="Personal"] { background: var(--personal-bg); color: var(--personal-text); }
+  .b[data-cat="Work"]     { background: var(--work-bg);     color: var(--work-text); }
+  .b[data-cat="Finance"]  { background: var(--finance-bg);  color: var(--finance-text); }
+  .b[data-cat="Projects"] { background: var(--projects-bg); color: var(--projects-text); }
+  .bph { background: var(--high-bg); color: var(--high); }
+  .bpm { background: var(--medium-bg); color: #8a5500; }
+  .bpl { background: var(--low-bg); color: var(--low); }
+  .bd  { background: #f0f0f0; color: #555; }
+  .bd.od { background: var(--high-bg); color: var(--high); }
+  .bd.sn { background: var(--medium-bg); color: #8a5500; }
+  .ba  { background: #f0f4ff; color: #3050a0; }
+  .br  { background: #fff0e8; color: #c05a00; }
+  .brc { background: #EEEEFF; color: #4040b0; }
+  .bt  { background: #f5f0ff; color: #6040a0; }
+  .bh  { background: #f0f0f0; color: #888; font-style: italic; }
+  .prog-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+  .prog-track { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; max-width: 200px; }
+  .prog-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .prog-pct { font-size: 0.74rem; color: #888; }
+  .t-notes { font-size: 0.78rem; color: #777; margin-top: 0.3rem; font-style: italic; }
+  .t-actions { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; flex-shrink: 0; }
+  .ib { background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: 6px; font-size: 1rem; color: #bbb; transition: all 0.15s; }
+  .ib:hover { background: #f0f0f0; color: #555; }
+  .empty { text-align: center; padding: 3rem; color: #bbb; }
+  .sec-hdr { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #bbb; padding: 0.5rem 0.25rem 0.5rem; border-bottom: 1px solid #eee; margin-bottom: 0.5rem; }
+  /* Modal */
+  .mb { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .modal { background: white; border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 1.2rem; color: #1F3864; }
+  .fr { margin-bottom: 0.85rem; }
+  .fr label { display: block; font-size: 0.76rem; font-weight: 700; color: #555; margin-bottom: 0.28rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .fr input, .fr select, .fr textarea { width: 100%; padding: 0.48rem 0.72rem; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.88rem; font-family: inherit; color: #1a1a2e; background: white; transition: border-color 0.15s; }
+  .fr input:focus, .fr select:focus, .fr textarea:focus { outline: none; border-color: #2E75B6; }
+  .fr textarea { resize: vertical; min-height: 62px; }
+  .f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .ma { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.2rem; }
+  .bs { background: #1F3864; color: white; padding: 0.52rem 1.2rem; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; } .bs:hover { background: #2E75B6; }
+  .bc { background: #f0f0f0; color: #555; padding: 0.52rem 1.2rem; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; } .bc:hover { background: #e0e0e0; }
+  /* Recurrence box */
+  .recbox { background: #F0F4FF; border: 1.5px solid #C8D4F8; border-radius: 10px; padding: 1rem; margin-bottom: 0.85rem; }
+  .rec-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.87rem; font-weight: 600; color: #3040a0; cursor: pointer; margin-bottom: 0; }
+  .rec-toggle input { cursor: pointer; }
+  .rec-fields { display: none; margin-top: 0.85rem; }
+  .rec-fields.vis { display: block; }
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.6rem; }
+  .rec-hint { font-size: 0.77rem; color: #5560aa; background: #e8ecff; padding: 0.45rem 0.7rem; border-radius: 6px; margin-top: 0.5rem; }
+  /* Settings */
+  .ss { margin-bottom: 1.2rem; }
+  .ss h3 { font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 0.55rem; padding-bottom: 0.35rem; border-bottom: 1px solid #eee; }
+  .sr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.45rem; font-size: 0.85rem; color: #444; gap: 0.5rem; }
+  .sr input { flex: 1; max-width: 56%; padding: 0.36rem 0.58rem; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.82rem; } .sr input:focus { outline: none; border-color: #2E75B6; }
+  /* Claude panel */
+  .cp { background: linear-gradient(135deg, #EBF3FB, #f5eeff); border: 1.5px solid #c0d4f0; border-radius: var(--radius); padding: 1rem; margin-bottom: 0.85rem; }
+  .cp h3 { font-size: 0.84rem; font-weight: 700; color: #1F3864; margin-bottom: 0.4rem; }
+  .cp p { font-size: 0.78rem; color: #555; margin-bottom: 0.5rem; line-height: 1.5; }
+  .cp textarea { width: 100%; padding: 0.45rem; border: 1.5px solid #c0d4f0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.77rem; height: 78px; resize: vertical; color: #1a1a2e; background: white; }
+  /* Toast */
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1F3864; color: white; padding: 0.72rem 1.2rem; border-radius: 10px; font-size: 0.86rem; font-weight: 500; z-index: 400; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: sup 0.3s ease; max-width: 320px; }
+  @keyframes sup { from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1} }
+  /* Setup */
+  .sw { padding: 1.5rem; }
+  .setup-card { background: white; border-radius: 14px; padding: 2rem; max-width: 500px; margin: 2rem auto; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+  .setup-card h2 { font-size: 1.35rem; font-weight: 700; color: #1F3864; margin-bottom: 0.75rem; text-align: center; }
+  .setup-card p { color: #666; font-size: 0.87rem; line-height: 1.6; margin-bottom: 1rem; text-align: center; }
+  .setup-card input { width: 100%; padding: 0.58rem 0.88rem; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.9rem; margin-bottom: 0.72rem; }
+  .setup-step { display: flex; align-items: flex-start; gap: 0.72rem; margin-bottom: 0.72rem; }
+  .stn { background: #1F3864; color: white; width: 23px; height: 23px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .stt { font-size: 0.82rem; color: #444; line-height: 1.5; }
+  .stt a { color: #2E75B6; } .stt code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.79rem; }
+  @media(max-width:500px){ .tc{grid-template-columns:auto 1fr;} .t-actions{flex-direction:row;grid-column:1/-1;} .f2{grid-template-columns:1fr;} .stats-grid{grid-template-columns:repeat(3,1fr);} .rec-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="setup-screen" style="display:none;" class="sw">
+  <div class="setup-card">
+    <div style="font-size:3rem;text-align:center;margin-bottom:1rem;">📋</div>
+    <h2>Welcome to TaskMaster Pro</h2>
+    <p>Connect Google Drive to sync tasks across all your devices. One-time setup — all in your browser.</p>
+    <div style="margin-bottom:1.2rem;">
+      <div class="setup-step"><div class="stn">1</div><div class="stt">Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> and sign in with your personal Google account.</div></div>
+      <div class="setup-step"><div class="stn">2</div><div class="stt">Click <strong>Select a project → New Project</strong>. Name it <code>TaskMaster</code> and click Create.</div></div>
+      <div class="setup-step"><div class="stn">3</div><div class="stt">Search <strong>Google Drive API</strong> and click Enable.</div></div>
+      <div class="setup-step"><div class="stn">4</div><div class="stt">Go to <strong>Credentials → Create Credentials → OAuth client ID</strong>. Choose <em>Web application</em>. Add this file's URL as an Authorised JavaScript origin. Copy the <strong>Client ID</strong>.</div></div>
+      <div class="setup-step"><div class="stn">5</div><div class="stt">Go to <strong>OAuth consent screen</strong>, set External, add your email as a test user.</div></div>
+    </div>
+    <input type="text" id="setup-cid" placeholder="Paste your Google Client ID here..." />
+    <input type="email" id="setup-email" placeholder="Your email address (for reminders)" />
+    <button class="bs" style="width:100%;padding:0.7rem;font-size:0.94rem;" onclick="saveSetup()">Save &amp; Connect Google Drive</button>
+    <p style="margin-top:0.75rem;font-size:0.79rem;color:#aaa;">Or <a href="#" onclick="skipSetup()" style="color:#2E75B6;">skip for now</a> — tasks save locally only.</p>
+  </div>
+</div>
+
+<div id="main-app" style="display:none;">
+  <div class="app-header">
+    <h1>📋 TaskMaster Pro <span id="hlabel">— Local mode</span></h1>
+    <div class="header-actions">
+      <div class="drive-status"><div class="dot" id="ddot"></div><span id="dtxt">Not connected</span></div>
+      <button class="btn btn-ghost" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn btn-white" onclick="openAdd()">+ Add Task</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div style="margin-bottom:2rem;">
+      <div class="db-title">Dashboard Overview</div>
+      <div class="stats-grid">
+        <div class="sc tt"><div class="sn2" id="s0">0</div><div class="sl">Active Tasks</div></div>
+        <div class="sc ov"><div class="sn2" id="s1">0</div><div class="sl">Overdue</div></div>
+        <div class="sc sn"><div class="sn2" id="s2">0</div><div class="sl">Due 7 Days</div></div>
+        <div class="sc ip"><div class="sn2" id="s3">0</div><div class="sl">In Progress</div></div>
+        <div class="sc dn"><div class="sn2" id="s4">0</div><div class="sl">Completed</div></div>
+        <div class="sc rc"><div class="sn2" id="s5">0</div><div class="sl">Recurring</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card"><h3>Tasks by Category</h3><div id="chart-cat"></div></div>
+        <div class="chart-card"><h3>Priority Breakdown</h3>
+          <div class="pie-wrap"><svg id="pie" width="100" height="100" viewBox="0 0 100 100"></svg><div class="pie-leg" id="pie-leg"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-cat="All" onclick="selTab(this)">All</div>
+      <div class="tab" data-cat="Personal" onclick="selTab(this)">🏠 Personal</div>
+      <div class="tab" data-cat="Work" onclick="selTab(this)">💼 Work</div>
+      <div class="tab" data-cat="Finance" onclick="selTab(this)">💰 Finance</div>
+      <div class="tab" data-cat="Projects" onclick="selTab(this)">🏗 Projects</div>
+      <div class="tab" data-cat="History" onclick="selTab(this)">🕐 History</div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="srch" placeholder="🔍 Search tasks..." oninput="render()" />
+      <select id="fp" onchange="render()"><option value="">All Priorities</option><option>High</option><option>Medium</option><option>Low</option></select>
+      <select id="fs" onchange="render()"><option value="">All Statuses</option><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option></select>
+      <select id="fo" onchange="render()"><option value="due">Sort: Due Date</option><option value="priority">Sort: Priority</option><option value="name">Sort: Name</option><option value="pct">Sort: % Complete</option></select>
+      <label class="sc-toggle"><input type="checkbox" id="shd" onchange="render()" /> Show completed</label>
+    </div>
+
+    <div class="task-list" id="tlist"></div>
+  </div>
+</div>
+</div>
+
+<!-- Task modal -->
+<div id="tmodal" class="mb" style="display:none;">
+  <div class="modal">
+    <h2 id="mtitle">Add New Task</h2>
+    <div class="fr"><label>Task Name *</label><input type="text" id="fn" placeholder="What needs to be done?" /></div>
+    <div class="f2">
+      <div class="fr"><label>Category</label><select id="fc"><option>Personal</option><option>Work</option><option>Finance</option><option>Projects</option></select></div>
+      <div class="fr"><label>Priority</label><select id="fpr"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>Due Date</label><input type="date" id="fd" /></div>
+      <div class="fr"><label>Status</label><select id="fst"><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option></select></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>Assigned To</label><input type="text" id="fas" placeholder="Name or team" /></div>
+      <div class="fr"><label>% Complete</label><input type="number" id="fpc" min="0" max="100" value="0" /></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>Email Reminder</label><select id="frm"><option value="">No reminder</option><option value="1hour">1 hour before</option><option value="1day">1 day before</option><option value="3days">3 days before</option><option value="1week">1 week before</option></select></div>
+      <div class="fr"><label>Tags (comma separated)</label><input type="text" id="ftg" placeholder="e.g. urgent, client" /></div>
+    </div>
+
+    <!-- Recurrence -->
+    <div class="recbox">
+      <label class="rec-toggle"><input type="checkbox" id="fron" onchange="togRec()" /> 🔁 Make this a recurring task</label>
+      <div class="rec-fields" id="rfields">
+        <div class="rec-grid">
+          <div class="fr"><label>Repeat every</label>
+            <div style="display:flex;gap:0.4rem;">
+              <input type="number" id="frn" min="1" value="1" style="width:64px;flex-shrink:0;" />
+              <select id="fru" style="flex:1;"><option value="days">Days</option><option value="weeks">Weeks</option><option value="months">Months</option></select>
+            </div>
+          </div>
+          <div class="fr"><label>Calculate next date from</label>
+            <select id="frf"><option value="due">Original due date</option><option value="completion">Completion date</option></select>
+          </div>
+        </div>
+        <div class="fr"><label>Stop recurring after (optional)</label><input type="date" id="fre" /></div>
+        <div class="rec-hint">✓ When you complete this task, the next occurrence is created automatically and kept in your history.</div>
+      </div>
+    </div>
+
+    <div class="fr"><label>Notes</label><textarea id="fno" placeholder="Any additional details..."></textarea></div>
+    <div class="ma">
+      <button class="bc" onclick="cm('tmodal')">Cancel</button>
+      <button class="bs" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="smodal" class="mb" style="display:none;">
+  <div class="modal">
+    <h2>⚙ Settings</h2>
+
+    <div class="ss">
+      <h3>Google Drive Sync</h3>
+      <div class="sr"><span>Client ID</span><input type="text" id="scid" placeholder="Google OAuth Client ID" /></div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem;">
+        <button class="btn btn-success" onclick="connectDrive()">Connect Drive</button>
+        <button class="btn btn-danger" onclick="disconnectDrive()">Disconnect</button>
+        <button class="btn btn-white" style="color:#1F3864;border:1px solid #ddd;" onclick="syncNow()">↑↓ Sync Now</button>
+      </div>
+    </div>
+
+    <div class="ss">
+      <h3>Email Reminders via EmailJS</h3>
+      <p style="font-size:0.8rem;color:#666;margin-bottom:0.6rem;">Free at <a href="https://emailjs.com" target="_blank" style="color:#2E75B6;">emailjs.com</a> (200/month free). Create an account → Email Service → Template. Template needs variables: <code style="background:#f0f0f0;padding:0 3px;border-radius:3px;">{{to_email}}</code> <code style="background:#f0f0f0;padding:0 3px;border-radius:3px;">{{subject}}</code> <code style="background:#f0f0f0;padding:0 3px;border-radius:3px;">{{message}}</code></p>
+      <div class="sr"><span>Your Email</span><input type="email" id="sem" /></div>
+      <div class="sr"><span>Public Key</span><input type="text" id="sek" placeholder="From Account page" /></div>
+      <div class="sr"><span>Service ID</span><input type="text" id="sev" placeholder="service_xxxxxxx" /></div>
+      <div class="sr"><span>Template ID</span><input type="text" id="set" placeholder="template_xxxxxxx" /></div>
+      <button class="btn btn-success" style="margin-top:0.5rem;" onclick="testEmail()">Send Test Email</button>
+    </div>
+
+    <div class="ss">
+      <h3>Import Task from Claude</h3>
+      <div class="cp">
+        <h3>📋 Claude Import</h3>
+        <p>Ask Claude: <em>"Add a task: [name], due [date], [priority] priority, [category], remind [1day/3days/1week/1hour], assigned to [name], recur every [n] [days/weeks/months] from [due/completion], end recur [date], notes: [text]"</em><br>Claude will reply with JSON — paste it below.</p>
+        <textarea id="cjson" placeholder='{"name":"Lodge BAS","category":"Finance","priority":"High","due":"2025-04-28","assignee":"Self","pct":0,"status":"Not Started","reminder":"3days","tags":"tax,quarterly","notes":"Q3 BAS","recur":true,"recurN":3,"recurUnit":"months","recurFrom":"due","recurEnd":""}'></textarea>
+        <button class="bs" style="margin-top:0.5rem;font-size:0.81rem;padding:0.38rem 0.88rem;" onclick="claudeImport()">Import Task</button>
+      </div>
+    </div>
+
+    <div class="ss">
+      <h3>Data Management</h3>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button class="btn btn-white" style="color:#1F3864;border:1px solid #ddd;" onclick="exportData()">Export JSON</button>
+        <button class="btn btn-white" style="color:#1F3864;border:1px solid #ddd;" onclick="document.getElementById('ifile').click()">Import JSON</button>
+        <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)" />
+        <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+      </div>
+    </div>
+
+    <div class="ma">
+      <button class="bs" onclick="saveSettings()">Save Settings</button>
+      <button class="bc" onclick="cm('smodal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let tasks=[], cfg={}, tab='All', eid=null, gapiOk=false, dfid=null, tclient=null;
+const DFILE='taskmaster_pro_data.json', SCOPE='https://www.googleapis.com/auth/drive.file';
+
+function init(){
+  cfg=JSON.parse(localStorage.getItem('tm_cfg')||'{}');
+  tasks=JSON.parse(localStorage.getItem('tm_tasks')||'[]');
+  dfid=localStorage.getItem('tm_dfid')||null;
+  if(!cfg.init){ document.getElementById('setup-screen').style.display=''; } else showMain();
+}
+
+function showMain(){
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('main-app').style.display='';
+  dash(); render();
+  if(cfg.gcid) loadGapi();
+  checkReminders();
+}
+
+function saveSetup(){
+  cfg.gcid=document.getElementById('setup-cid').value.trim();
+  cfg.email=document.getElementById('setup-email').value.trim();
+  cfg.init=true; save(); showMain();
+}
+function skipSetup(){ cfg.init=true; save(); showMain(); return false; }
+
+// ── Drive ──────────────────────────────────────────────────────────────
+function loadGapi(){
+  if(!cfg.gcid) return;
+  const s1=document.createElement('script'); s1.src='https://apis.google.com/js/api.js';
+  s1.onload=()=>gapi.load('client',async()=>{ await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']}); gapiOk=true; });
+  document.head.appendChild(s1);
+  const s2=document.createElement('script'); s2.src='https://accounts.google.com/gsi/client';
+  s2.onload=()=>{ if(!cfg.gcid) return; tclient=google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:SCOPE,callback:async r=>{ if(r.error){toast('Auth error: '+r.error);return;} ds('sync','Syncing...'); await syncDrive(); }}); };
+  document.head.appendChild(s2);
+}
+
+function connectDrive(){ const c=document.getElementById('scid').value.trim(); if(c) cfg.gcid=c; if(!cfg.gcid){toast('Enter Client ID first.');return;} localStorage.setItem('tm_cfg',JSON.stringify(cfg)); if(!tclient){loadGapi();setTimeout(()=>tclient&&tclient.requestAccessToken(),2500);}else tclient.requestAccessToken(); }
+function disconnectDrive(){ try{if(gapi.client.getToken())google.accounts.oauth2.revoke(gapi.client.getToken().access_token);gapi.client.setToken(null);}catch(e){} dfid=null;localStorage.removeItem('tm_dfid');ds('','Not connected');document.getElementById('hlabel').textContent='— Local mode';toast('Drive disconnected.'); }
+async function syncNow(){ if(!tclient||!gapi.client.getToken()){connectDrive();return;} ds('sync','Syncing...'); await syncDrive(); }
+async function syncDrive(){ if(!gapiOk||!gapi.client.getToken()) return; try{ if(!dfid) dfid=await findCreate(); if(dfid){await push();ds('on','Synced');document.getElementById('hlabel').textContent='— Drive synced';toast('Synced ✓');} }catch(e){ds('','Sync error');toast('Sync error: '+e.message);} }
+async function findCreate(){ const c=localStorage.getItem('tm_dfid'); if(c){dfid=c;await pull(c);return c;} const r=await gapi.client.drive.files.list({q:`name='${DFILE}' and trashed=false`,fields:'files(id)'}); if(r.result.files&&r.result.files.length){const f=r.result.files[0].id;localStorage.setItem('tm_dfid',f);await pull(f);return f;} const cr=await gapi.client.drive.files.create({resource:{name:DFILE,mimeType:'application/json'},fields:'id'});const f=cr.result.id;localStorage.setItem('tm_dfid',f);await push();return f; }
+async function pull(fid){ const r=await gapi.client.drive.files.get({fileId:fid,alt:'media'}); if(r.body){const d=JSON.parse(r.body);tasks=d.tasks||tasks;localStorage.setItem('tm_tasks',JSON.stringify(tasks));dash();render();} }
+async function push(){ if(!dfid) return; await gapi.client.request({path:`/upload/drive/v3/files/${dfid}`,method:'PATCH',params:{uploadType:'media'},headers:{'Content-Type':'application/json'},body:JSON.stringify({tasks,saved:new Date().toISOString()})}); }
+function ds(t,x){ document.getElementById('ddot').className='dot'+(t?' '+t:'');document.getElementById('dtxt').textContent=x; }
+
+function save(){ localStorage.setItem('tm_tasks',JSON.stringify(tasks));localStorage.setItem('tm_cfg',JSON.stringify(cfg)); if(gapiOk&&dfid){try{if(gapi.client.getToken()){ds('sync','Syncing...');push().then(()=>ds('on','Synced')).catch(()=>ds('','Error'));}}catch(e){}} }
+
+// ── Recurrence helpers ─────────────────────────────────────────────────
+function addIntvl(dstr,n,unit){ const d=new Date(dstr+'T00:00:00'); if(unit==='days')d.setDate(d.getDate()+n); else if(unit==='weeks')d.setDate(d.getDate()+n*7); else if(unit==='months')d.setMonth(d.getMonth()+n); return d.toISOString().split('T')[0]; }
+
+function nextOcc(t){ if(!t.recur) return null; const base=t.recurFrom==='completion'?new Date().toISOString().split('T')[0]:(t.due||new Date().toISOString().split('T')[0]); const nd=addIntvl(base,parseInt(t.recurN)||1,t.recurUnit||'days'); if(t.recurEnd&&nd>t.recurEnd) return null; return{id:'task_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),name:t.name,category:t.category,priority:t.priority,due:nd,status:'Not Started',assignee:t.assignee||'',pct:0,reminder:t.reminder||'',tags:t.tags||[],notes:t.notes||'',recur:true,recurN:t.recurN,recurUnit:t.recurUnit,recurFrom:t.recurFrom,recurEnd:t.recurEnd||'',recurParentId:t.recurParentId||t.id,created:new Date().toISOString(),updated:new Date().toISOString()}; }
+
+function rlabel(t){ if(!t.recur) return ''; return `Every ${t.recurN} ${t.recurUnit} ${t.recurFrom==='completion'?'after completion':'from due date'}`; }
+
+// ── Task CRUD ──────────────────────────────────────────────────────────
+function openAdd(){ eid=null;document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('tmodal').style.display='flex'; }
+
+function openEdit(id){ eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;document.getElementById('mtitle').textContent='Edit Task';
+  document.getElementById('fn').value=t.name;document.getElementById('fc').value=t.category;document.getElementById('fpr').value=t.priority;document.getElementById('fd').value=t.due||'';document.getElementById('fst').value=t.status;document.getElementById('fas').value=t.assignee||'';document.getElementById('fpc').value=t.pct||0;document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');document.getElementById('fno').value=t.notes||'';
+  document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';document.getElementById('fre').value=t.recurEnd||'';
+  togRec();document.getElementById('tmodal').style.display='flex'; }
+
+function clrForm(){ ['fn','fas','ftg','fno'].forEach(id=>document.getElementById(id).value=''); document.getElementById('fc').value=tab!=='All'&&tab!=='History'?tab:'Personal';document.getElementById('fpr').value='Medium';document.getElementById('fst').value='Not Started';document.getElementById('fpc').value=0;document.getElementById('frm').value='';document.getElementById('fron').checked=false;document.getElementById('frn').value=1;document.getElementById('fru').value='days';document.getElementById('frf').value='due';document.getElementById('fre').value='';togRec(); }
+
+function togRec(){ const on=document.getElementById('fron').checked;document.getElementById('rfields').className='rec-fields'+(on?' vis':''); }
+
+function saveTask(){ const nm=document.getElementById('fn').value.trim(); if(!nm){toast('Please enter a task name.');return;} const ron=document.getElementById('fron').checked; const t={id:eid||'task_'+Date.now(),name:nm,category:document.getElementById('fc').value,priority:document.getElementById('fpr').value,due:document.getElementById('fd').value,status:document.getElementById('fst').value,assignee:document.getElementById('fas').value.trim(),pct:parseInt(document.getElementById('fpc').value)||0,reminder:document.getElementById('frm').value,tags:document.getElementById('ftg').value.split(',').map(x=>x.trim()).filter(Boolean),notes:document.getElementById('fno').value.trim(),recur:ron,recurN:ron?parseInt(document.getElementById('frn').value)||1:null,recurUnit:ron?document.getElementById('fru').value:null,recurFrom:ron?document.getElementById('frf').value:null,recurEnd:ron?document.getElementById('fre').value:null,recurParentId:eid?(tasks.find(x=>x.id===eid)||{}).recurParentId:null,created:eid?(tasks.find(x=>x.id===eid)||{}).created||new Date().toISOString():new Date().toISOString(),updated:new Date().toISOString()}; if(t.status==='Complete')t.pct=100; if(eid){const i=tasks.findIndex(x=>x.id===eid);if(i>-1)tasks[i]=t;}else tasks.push(t); save();cm('tmodal');dash();render();toast(eid?'Task updated ✓':'Task added ✓'); }
+
+function delTask(id){ if(!confirm('Delete this task?'))return;tasks=tasks.filter(t=>t.id!==id);save();dash();render();toast('Task deleted.'); }
+
+function togDone(id){ const t=tasks.find(x=>x.id===id);if(!t)return; const was=t.status==='Complete'; t.status=was?'Not Started':'Complete';t.pct=t.status==='Complete'?100:0;t.updated=new Date().toISOString(); if(t.status==='Complete'&&t.recur){ const nx=nextOcc(t); if(nx){tasks.push(nx);toast(`"${t.name}" complete — next due ${fmt(nx.due)} added ✓`);}else toast(`"${t.name}" complete — no more recurrences.`); } save();dash();render(); }
+
+// ── Render ─────────────────────────────────────────────────────────────
+function render(){
+  const srch=document.getElementById('srch').value.toLowerCase();
+  const fp=document.getElementById('fp').value, fs=document.getElementById('fs').value, fo=document.getElementById('fo').value;
+  const shd=document.getElementById('shd').checked;
+  const today=new Date();today.setHours(0,0,0,0);
+  const soon=new Date(today);soon.setDate(soon.getDate()+7);
+  const list=document.getElementById('tlist');
+
+  if(tab==='History'){
+    let h=tasks.filter(t=>t.status==='Complete');
+    if(fp)h=h.filter(t=>t.priority===fp);
+    if(srch)h=h.filter(t=>t.name.toLowerCase().includes(srch)||(t.notes||'').toLowerCase().includes(srch));
+    h.sort((a,b)=>new Date(b.updated||0)-new Date(a.updated||0));
+    if(!h.length){list.innerHTML='<div class="empty"><div style="font-size:2.5rem">🕐</div><p style="margin-top:0.5rem;">No completed tasks yet.</p></div>';return;}
+    list.innerHTML='<div class="sec-hdr">Completed tasks — most recent first</div>'+h.map(t=>card(t,false,false)).join('');
+    return;
+  }
+
+  let fl=tasks.filter(t=>{ if(!shd&&t.status==='Complete')return false; if(tab!=='All'&&t.category!==tab)return false; if(fp&&t.priority!==fp)return false; if(fs&&t.status!==fs)return false; if(srch&&!t.name.toLowerCase().includes(srch)&&!(t.notes||'').toLowerCase().includes(srch)&&!(t.tags||[]).join(' ').toLowerCase().includes(srch))return false; return true; });
+  const po={High:0,Medium:1,Low:2};
+  fl.sort((a,b)=>{ if(fo==='priority')return(po[a.priority]||1)-(po[b.priority]||1); if(fo==='name')return a.name.localeCompare(b.name); if(fo==='pct')return(b.pct||0)-(a.pct||0); if(!a.due)return 1;if(!b.due)return-1;return new Date(a.due)-new Date(b.due); });
+  if(!fl.length){list.innerHTML='<div class="empty"><div style="font-size:2.5rem">✅</div><p style="margin-top:0.5rem;">No tasks here — add one!</p></div>';return;}
+  list.innerHTML=fl.map(t=>{ const d=t.due?new Date(t.due+'T00:00:00'):null; const od=d&&d<today&&t.status!=='Complete'; const sn=d&&d>=today&&d<=soon&&t.status!=='Complete'; return card(t,od,sn); }).join('');
+}
+
+function card(t,od,sn){
+  const dl=t.due?fmt(t.due):'', dc=od?'od':sn?'sn':'';
+  const rm={'':'','1hour':'⏰ 1hr','1day':'⏰ 1d','3days':'⏰ 3d','1week':'⏰ 1wk'};
+  const pc=t.pct===100?'#5BAD6F':t.pct>50?'#4F86C6':'#E8A838';
+  return`<div class="tc ${t.status==='Complete'?'done':''} ${od?'od':''}" data-cat="${t.category}">
+  <div class="chk ${t.status==='Complete'?'on':''}" onclick="togDone('${t.id}')">${t.status==='Complete'?'✓':''}</div>
+  <div class="t-body">
+    <div class="t-name">${esc(t.name)}</div>
+    <div class="t-meta">
+      <span class="b" data-cat="${t.category}">${t.category}</span>
+      <span class="b ${t.priority==='High'?'bph':t.priority==='Medium'?'bpm':'bpl'}">${t.priority}</span>
+      ${dl?`<span class="b bd ${dc}">${od?'⚠ ':''}${dl}</span>`:''}
+      ${t.assignee?`<span class="b ba">👤 ${esc(t.assignee)}</span>`:''}
+      ${t.reminder&&rm[t.reminder]?`<span class="b br">${rm[t.reminder]}</span>`:''}
+      ${t.recur?`<span class="b brc">🔁 ${rlabel(t)}</span>`:''}
+      ${(t.tags||[]).map(g=>`<span class="b bt">#${esc(g)}</span>`).join('')}
+      ${t.recurParentId?`<span class="b bh">occurrence</span>`:''}
+    </div>
+    <div class="prog-row">
+      <div class="prog-track"><div class="prog-fill" style="width:${t.pct||0}%;background:${pc}"></div></div>
+      <span class="prog-pct">${t.pct||0}%</span>
+      <span style="font-size:0.74rem;color:#bbb;margin-left:0.25rem;">${t.status}</span>
+    </div>
+    ${t.notes?`<div class="t-notes">${esc(t.notes)}</div>`:''}
+  </div>
+  <div class="t-actions">
+    <button class="ib" onclick="openEdit('${t.id}')" title="Edit">✏️</button>
+    <button class="ib" onclick="delTask('${t.id}')" title="Delete">🗑️</button>
+  </div>
+</div>`;
+}
+
+function selTab(el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');tab=el.dataset.cat;render(); }
+
+// ── Dashboard ──────────────────────────────────────────────────────────
+function dash(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const soon=new Date(today);soon.setDate(soon.getDate()+7);
+  const act=tasks.filter(t=>t.status!=='Complete');
+  document.getElementById('s0').textContent=act.length;
+  document.getElementById('s1').textContent=act.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today).length;
+  document.getElementById('s2').textContent=act.filter(t=>t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon).length;
+  document.getElementById('s3').textContent=tasks.filter(t=>t.status==='In Progress').length;
+  document.getElementById('s4').textContent=tasks.filter(t=>t.status==='Complete').length;
+  document.getElementById('s5').textContent=act.filter(t=>t.recur).length;
+  const cc={Personal:'#4F86C6',Work:'#C8860A',Finance:'#5BAD6F',Projects:'#C45FAA'};
+  const cats=['Personal','Work','Finance','Projects'].map(c=>({c,n:act.filter(t=>t.category===c).length}));
+  const mx=Math.max(...cats.map(x=>x.n),1);
+  document.getElementById('chart-cat').innerHTML=cats.map(({c,n})=>`<div class="bar-row"><span class="bar-lbl">${c}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/mx*100)}%;background:${cc[c]}"></div></div><span class="bar-n">${n}</span></div>`).join('');
+  const pc={High:0,Medium:0,Low:0};act.forEach(t=>{if(pc[t.priority]!==undefined)pc[t.priority]++;});
+  const tot=Object.values(pc).reduce((a,b)=>a+b,0)||1;
+  const pcc={High:'#E24B4A',Medium:'#EF9F27',Low:'#5BAD6F'};
+  let ang=-Math.PI/2,pts='';
+  Object.entries(pc).forEach(([p,n])=>{ const sl=(n/tot)*2*Math.PI;if(!sl)return;const x1=50+45*Math.cos(ang),y1=50+45*Math.sin(ang),x2=50+45*Math.cos(ang+sl),y2=50+45*Math.sin(ang+sl);pts+=`<path d="M50,50 L${x1.toFixed(1)},${y1.toFixed(1)} A45,45 0 ${sl>Math.PI?1:0},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${pcc[p]}" opacity="0.9"/>`;ang+=sl; });
+  document.getElementById('pie').innerHTML=pts||'<circle cx="50" cy="50" r="45" fill="#eee"/>';
+  document.getElementById('pie-leg').innerHTML=Object.entries(pc).map(([p,n])=>`<div class="pie-li"><div class="pie-dot" style="background:${pcc[p]}"></div>${p}: ${n}</div>`).join('');
+}
+
+// ── Reminders ──────────────────────────────────────────────────────────
+function checkReminders(){ if(!cfg.ejsKey||!cfg.ejsSvc||!cfg.ejsTpl||!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td); }
+
+function sendEmail(items){ const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{ emailjs.init(cfg.ejsKey);const body=items.map(t=>`• ${t.name} — Due: ${t.due} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(cfg.ejsSvc,cfg.ejsTpl,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast(`Reminder sent ✓`)).catch(e=>toast('Email error: '+(e.text||e))); };document.head.appendChild(s); }
+function testEmail(){ saveCfg();sendEmail([{name:'Test Reminder',due:new Date().toISOString().split('T')[0],priority:'High',recur:false}]); }
+
+// ── Claude import ──────────────────────────────────────────────────────
+function claudeImport(){ const raw=document.getElementById('cjson').value.trim();if(!raw){toast('Paste JSON first.');return;} try{ const d=JSON.parse(raw);const t={id:'task_'+Date.now(),name:d.name||'Unnamed',category:d.category||'Personal',priority:d.priority||'Medium',due:d.due||'',status:d.status||'Not Started',assignee:d.assignee||'',pct:parseInt(d.pct)||0,reminder:d.reminder||'',tags:typeof d.tags==='string'?d.tags.split(',').map(x=>x.trim()).filter(Boolean):(d.tags||[]),notes:d.notes||'',recur:!!d.recur,recurN:d.recurN||null,recurUnit:d.recurUnit||null,recurFrom:d.recurFrom||'due',recurEnd:d.recurEnd||'',created:new Date().toISOString(),updated:new Date().toISOString()};tasks.push(t);save();dash();render();document.getElementById('cjson').value='';toast(`"${t.name}" imported ✓`); }catch(e){toast('Invalid JSON.');} }
+
+// ── Settings ───────────────────────────────────────────────────────────
+function openSettings(){ document.getElementById('scid').value=cfg.gcid||'';document.getElementById('sem').value=cfg.email||'';document.getElementById('sek').value=cfg.ejsKey||'';document.getElementById('sev').value=cfg.ejsSvc||'';document.getElementById('set').value=cfg.ejsTpl||'';document.getElementById('smodal').style.display='flex'; }
+function saveCfg(){ cfg.gcid=document.getElementById('scid').value.trim();cfg.email=document.getElementById('sem').value.trim();cfg.ejsKey=document.getElementById('sek').value.trim();cfg.ejsSvc=document.getElementById('sev').value.trim();cfg.ejsTpl=document.getElementById('set').value.trim(); }
+function saveSettings(){ saveCfg();localStorage.setItem('tm_cfg',JSON.stringify(cfg));cm('smodal');toast('Settings saved ✓'); }
+
+// ── Data ───────────────────────────────────────────────────────────────
+function exportData(){ const b=new Blob([JSON.stringify({tasks},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='taskmaster_'+new Date().toISOString().split('T')[0]+'.json';a.click(); }
+function importData(e){ const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.tasks){tasks=d.tasks;save();dash();render();toast('Imported ✓');}}catch{toast('Invalid file.');}};r.readAsText(f); }
+function clearAll(){ if(!confirm('Delete ALL tasks? This cannot be undone.'))return;tasks=[];save();dash();render();toast('Cleared.'); }
+
+// ── Utils ──────────────────────────────────────────────────────────────
+function cm(id){ document.getElementById(id).style.display='none'; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(d){ return d?new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):''; }
+function toast(msg){ const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500); }
+document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',e=>{if(e.target===b)b.style.display='none';}));
+init();
+</script>
+</body>
+</html>
