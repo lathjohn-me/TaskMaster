@@ -135,12 +135,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* Task cards */
 .task-list{display:flex;flex-direction:column;gap:.42rem}
-.tc{background:var(--surface);border-radius:var(--radius);padding:.75rem .9rem;box-shadow:var(--shadow);border-left:4px solid var(--border);display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:start;transition:all .2s;cursor:grab}
+.tc{background:var(--surface);border-radius:var(--radius);padding:.75rem .9rem;box-shadow:var(--shadow);border-left:4px solid var(--border);display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:start;transition:all .2s}
 .tc:hover{box-shadow:var(--shadow2);transform:translateY(-1px)}
 .tc.done{opacity:.55;background:var(--surface2)}
 .tc.od-card{box-shadow:0 0 0 1px rgba(226,75,74,.2),var(--shadow)}
-.tc.dragging{opacity:.4;transform:scale(.98)}
-.tc.drag-over{border-top:3px solid var(--blue)}
 .chk{width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
 .chk.on{background:#5BAD6F;border-color:#5BAD6F}
 .t-body{min-width:0}
@@ -832,13 +830,6 @@ async function togDone(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.statu
 
 async function togCheckItem(taskId,idx){const t=tasks.find(x=>x.id===taskId);if(!t||!t.checklist)return;t.checklist[idx].done=!t.checklist[idx].done;t.updated=new Date().toISOString();const total=t.checklist.length,done=t.checklist.filter(x=>x.done).length;if(total>0)t.pct=Math.round(done/total*100);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();}
 
-// ── Drag to reorder ───────────────────────────────────────────────────
-let dragId=null;
-function onDragStart(e,id){dragId=id;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
-function onDragOver(e,id){e.preventDefault();if(id===dragId)return;document.querySelectorAll('.tc').forEach(c=>c.classList.remove('drag-over'));e.currentTarget.classList.add('drag-over');}
-function onDrop(e,id){e.preventDefault();if(!dragId||dragId===id)return;const from=tasks.findIndex(x=>x.id===dragId);const to=tasks.findIndex(x=>x.id===id);if(from>-1&&to>-1){const t=tasks.splice(from,1)[0];tasks.splice(to,0,t);localStorage.setItem('tm_tasks',JSON.stringify(tasks));render();}dragId=null;}
-function onDragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.tc').forEach(c=>c.classList.remove('drag-over'));}
-
 // ── Swipe gestures ────────────────────────────────────────────────────
 function initSwipe(el,taskId){
   let sx=0,dx=0,swiping=false;
@@ -912,7 +903,7 @@ function card(t,od,sn){
   const clHtml=cl.length?`<div class="checklist">${cl.map((item,i)=>`<div class="cl-item ${item.done?'cl-done':''}"><input type="checkbox" ${item.done?'checked':''} onclick="togCheckItem('${t.id}',${i})" /><span>${esc(item.text)}</span></div>`).join('')}<div class="cl-progress">${clDone}/${cl.length} done</div></div>`:'';
   const atts=t.attachments||[];
   const attHtml=atts.length?`<div class="attachments">${atts.map(a=>`<a class="att-chip" href="${a.url}" target="_blank">📎 ${esc(a.name)}</a>`).join('')}</div>`:'';
-  return`<div class="tc ${t.status==='Complete'?'done':''} ${od?'od-card':''}" data-cat="${t.category}" data-id="${t.id}" style="border-left-color:${c.color};" draggable="true" ondragstart="onDragStart(event,'${t.id}')" ondragover="onDragOver(event,'${t.id}')" ondrop="onDrop(event,'${t.id}')" ondragend="onDragEnd(event)">
+  return`<div class="tc ${t.status==='Complete'?'done':''} ${od?'od-card':''}" data-cat="${t.category}" data-id="${t.id}" style="border-left-color:${c.color};">
   <div class="chk ${t.status==='Complete'?'on':''}" onclick="togDone('${t.id}')" style="${t.status!=='Complete'?'border-color:'+c.color+'40;':''}">${t.status==='Complete'?'✓':''}</div>
   <div class="t-body">
     <div class="t-name">${esc(t.name)}</div>
