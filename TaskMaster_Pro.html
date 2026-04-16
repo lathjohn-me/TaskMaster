@@ -19,11 +19,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* Header */
-.header{background:linear-gradient(135deg,#1F3864,#2E75B6);color:#fff;padding:0 1.25rem;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25)}
-.logo{font-size:1.1rem;font-weight:700;color:#fff;letter-spacing:-.5px;white-space:nowrap}
-.logo span{opacity:.5;font-weight:400;font-size:.78rem;margin-left:.4rem;font-family:'DM Mono',monospace}
-.header-right{display:flex;gap:.4rem;align-items:center;flex-shrink:0}
-.sync-pill{display:flex;align-items:center;gap:.3rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:.22rem .55rem;border-radius:20px;font-size:.7rem;color:rgba(255,255,255,.85);white-space:nowrap}
+.header{background:linear-gradient(135deg,#1F3864,#2E75B6);color:#fff;padding:.6rem 1.25rem;min-height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25);gap:.5rem;flex-wrap:nowrap}
+.header-left{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0;overflow:hidden}
+.logo{font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:-.5px;white-space:nowrap}
+.logo span{opacity:.5;font-weight:400;font-size:.75rem;margin-left:.35rem;font-family:'DM Mono',monospace}
+.header-right{display:flex;gap:.3rem;align-items:center;flex-shrink:0}
+.sync-pill{display:flex;align-items:center;gap:.28rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:.2rem .5rem;border-radius:20px;font-size:.68rem;color:rgba(255,255,255,.85);white-space:nowrap}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0}
 .sync-dot.on{background:#5BAD6F}.sync-dot.syncing{background:#E8A838;animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
@@ -283,8 +284,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media(max-width:500px){
   .tc{grid-template-columns:auto 1fr}.t-acts{flex-direction:row;grid-column:1/-1}
   .f2,.f3{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(3,1fr)}
-  .rec-grid{grid-template-columns:1fr}.header{padding:0 .75rem}
-  .logo span{display:none}.btn-ghost .btn-label{display:none}
+  .rec-grid{grid-template-columns:1fr}.header{padding:.5rem .75rem}
+  .logo span{display:none}
+  .sync-pill span:last-child{display:none}
   .dash-pills{gap:.25rem}.dash-pill{font-size:.68rem;padding:.17rem .42rem}
 }
 </style>
@@ -341,15 +343,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <!-- Main -->
 <div id="main-app" style="display:none;">
   <div class="header">
-    <div style="display:flex;align-items:center;gap:.6rem;min-width:0;">
-      <div class="logo">📋 TaskMaster Pro <span id="hlabel"></span></div>
+    <div class="header-left">
+      <div class="logo">📋 TaskMaster <span id="hlabel"></span></div>
       <div class="sync-pill"><div class="sync-dot" id="sdot"></div><span id="stxt">Ready</span></div>
     </div>
     <div class="header-right">
       <button class="btn btn-ghost btn-sm" onclick="showView('calendar')" id="btn-cal" title="Calendar">📅</button>
-      <button class="btn btn-ghost btn-sm" onclick="printSummary()" title="Print list" class="no-print">🖨</button>
-      <button class="btn btn-ghost" onclick="openSettings()">⚙ <span class="btn-label">Settings</span></button>
-      <button class="btn btn-white" onclick="openAdd()">+ <span class="btn-label">Add Task</span></button>
+      <button class="btn btn-ghost btn-sm" onclick="printSummary()" title="Print list">🖨</button>
+      <button class="btn btn-ghost btn-sm" onclick="openSettings()" title="Settings">⚙️</button>
+      <button class="btn btn-white btn-sm" onclick="openAdd()">+ Add</button>
       <button class="btn btn-ghost btn-sm" onclick="doSignOut()" title="Sign out">↩</button>
     </div>
   </div>
@@ -409,6 +411,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div id="view-calendar" style="display:none;">
       <div class="cal-header">
         <div class="cal-nav">
+          <button class="btn btn-outline btn-sm" onclick="showView('tasks')" title="Back to tasks">✕ Close</button>
           <button class="btn btn-outline btn-sm" onclick="calNav(-1)">◀</button>
           <div class="cal-title" id="cal-title"></div>
           <button class="btn btn-outline btn-sm" onclick="calNav(1)">▶</button>
@@ -634,7 +637,9 @@ async function showMain(){
 function showView(v){
   document.getElementById('view-tasks').style.display=v==='tasks'?'':'none';
   document.getElementById('view-calendar').style.display=v==='calendar'?'':'none';
-  document.getElementById('btn-cal').style.background=v==='calendar'?'rgba(255,255,255,0.3)':'';
+  const calBtn=document.getElementById('btn-cal');
+  calBtn.style.background=v==='calendar'?'rgba(255,255,255,0.3)':'';
+  calBtn.onclick=v==='calendar'?function(){showView('tasks');}:function(){showView('calendar');};
   if(v==='calendar')renderCal();
 }
 
