@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskMaster Pro</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskMaster">
+<meta name="theme-color" content="#1F3864">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>TaskMaster</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -175,16 +182,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .att-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:.78rem;padding:0;margin-left:.08rem}
 .att-del:hover{color:#E24B4A}
 
-/* Swipe */
-.tc-wrap{position:relative;overflow:hidden;border-radius:var(--radius)}
-.tc-swipe-bg{position:absolute;inset:0;display:flex;align-items:center;border-radius:var(--radius);pointer-events:none}
-.swipe-left-bg{background:#5BAD6F;justify-content:flex-start;padding-left:1rem}
-.swipe-right-bg{background:#E24B4A;justify-content:flex-end;padding-right:1rem}
-.swipe-icon{font-size:1.2rem;color:#fff;font-weight:700}
-
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(26,29,46,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
-.modal{background:var(--surface);border-radius:16px;padding:1.5rem;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22)}
+.modal{background:var(--surface);border-radius:16px;padding:1.5rem;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22);-webkit-overflow-scrolling:touch}
 .modal h2{font-size:1.1rem;font-weight:700;margin-bottom:1.15rem;color:var(--navy)}
 .fr{margin-bottom:.8rem}
 .fr label{display:block;font-size:.69rem;font-weight:700;color:var(--text2);margin-bottom:.26rem;text-transform:uppercase;letter-spacing:.8px}
@@ -286,6 +286,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .logo span{display:none}
   .sync-pill span:last-child{display:none}
   .dash-pills{gap:.25rem}.dash-pill{font-size:.68rem;padding:.17rem .42rem}
+  .modal{max-height:85vh;border-radius:12px 12px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;margin:0}
+  .overlay{align-items:flex-end;padding:0}
 }
 </style>
 </head>
@@ -485,6 +487,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div id="att-preview" style="margin-top:.45rem;display:flex;flex-wrap:wrap;gap:.3rem;"></div>
     </div>
     <div class="fr"><label>Notes</label><textarea id="fno" placeholder="Additional details..."></textarea></div>
+    <!-- Audit dates — shown when editing an existing task -->
+    <div id="audit-dates" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:.6rem .8rem;margin-bottom:.8rem;border:1px solid var(--border);">
+      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:.45rem;">Audit Trail</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem;">
+        <div><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Created</div><div style="font-size:.78rem;color:var(--text2);font-family:'DM Mono',monospace;" id="audit-created">—</div></div>
+        <div><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Last Updated</div><div style="font-size:.78rem;color:var(--text2);font-family:'DM Mono',monospace;" id="audit-updated">—</div></div>
+        <div id="audit-completed-wrap" style="display:none;grid-column:1/-1;"><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Completed</div><div style="font-size:.78rem;color:#3a6010;font-family:'DM Mono',monospace;" id="audit-completed">—</div></div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="cm('tmod')">Cancel</button>
       <button class="btn btn-outline btn-sm" onclick="printTask(null, true)" style="margin-right:auto;">🖨 Print</button>
@@ -803,11 +814,19 @@ function pillFilter(type){
 function clearPillFilter(){activePill=null;document.querySelectorAll('.dash-pill').forEach(p=>p.classList.remove('active-filter'));document.getElementById('active-filter-bar').style.display='none';render();}
 
 // ── Task CRUD ─────────────────────────────────────────────────────────
-function openAdd(){eid=null;pendingFiles=[];editingAttachments=[];clItems=[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('att-preview').innerHTML='';renderClEditor();document.getElementById('tmod').style.display='flex';}
+function openAdd(){eid=null;pendingFiles=[];editingAttachments=[];clItems=[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';renderClEditor();document.getElementById('tmod').style.display='flex';}
 
-function openAddPrefill(t){eid=null;pendingFiles=[];editingAttachments=[];clItems=t.checklist||[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fn').value=t.name||'';if(t.category&&cats.find(c=>c.name===t.category))document.getElementById('fc').value=t.category;if(t.priority)document.getElementById('fpr').value=t.priority;if(t.due)document.getElementById('fd').value=t.due;if(t.time)document.getElementById('ft').value=t.time;if(t.reminder)document.getElementById('frm').value=t.reminder;if(t.tags&&t.tags.length)document.getElementById('ftg').value=t.tags.join(', ');if(t.notes)document.getElementById('fno').value=t.notes;document.getElementById('att-preview').innerHTML='';renderClEditor();document.getElementById('tmod').style.display='flex';toast('Pre-filled from Claude — tap Save ✓');}
+function openAddPrefill(t){eid=null;pendingFiles=[];editingAttachments=[];clItems=t.checklist||[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fn').value=t.name||'';if(t.category&&cats.find(c=>c.name===t.category))document.getElementById('fc').value=t.category;if(t.priority)document.getElementById('fpr').value=t.priority;if(t.due)document.getElementById('fd').value=t.due;if(t.time)document.getElementById('ft').value=t.time;if(t.reminder)document.getElementById('frm').value=t.reminder;if(t.tags&&t.tags.length)document.getElementById('ftg').value=t.tags.join(', ');if(t.notes)document.getElementById('fno').value=t.notes;document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';renderClEditor();document.getElementById('tmod').style.display='flex';toast('Pre-filled from Claude — tap Save ✓');}
 
-function openEdit(id){eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;pendingFiles=[];editingAttachments=JSON.parse(JSON.stringify(t.attachments||[]));clItems=JSON.parse(JSON.stringify(t.checklist||[]));document.getElementById('mtitle').textContent='Edit Task';document.getElementById('fn').value=t.name;document.getElementById('fpr').value=t.priority;document.getElementById('fd').value=t.due||'';document.getElementById('ft').value=t.time||'';document.getElementById('fst').value=t.status;document.getElementById('fas').value=t.assignee||'';document.getElementById('fpc').value=t.pct||0;document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');document.getElementById('fno').value=t.notes||'';populateCatSelect();document.getElementById('fc').value=t.category;document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';document.getElementById('fre').value=t.recurEnd||'';togRec();renderAttPreview(editingAttachments);renderClEditor();document.getElementById('tmod').style.display='flex';}
+function openEdit(id){eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;pendingFiles=[];editingAttachments=JSON.parse(JSON.stringify(t.attachments||[]));clItems=JSON.parse(JSON.stringify(t.checklist||[]));document.getElementById('mtitle').textContent='Edit Task';document.getElementById('fn').value=t.name;document.getElementById('fpr').value=t.priority;document.getElementById('fd').value=t.due||'';document.getElementById('ft').value=t.time||'';document.getElementById('fst').value=t.status;document.getElementById('fas').value=t.assignee||'';document.getElementById('fpc').value=t.pct||0;document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');document.getElementById('fno').value=t.notes||'';populateCatSelect();document.getElementById('fc').value=t.category;document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';document.getElementById('fre').value=t.recurEnd||'';togRec();renderAttPreview(editingAttachments);renderClEditor();
+  // Audit dates
+  const ad=document.getElementById('audit-dates');ad.style.display='';
+  document.getElementById('audit-created').textContent=t.created?fmtDT(t.created):'—';
+  document.getElementById('audit-updated').textContent=t.updated?fmtDT(t.updated):'—';
+  const cw=document.getElementById('audit-completed-wrap');
+  if(t.status==='Complete'&&t.updated){cw.style.display='';document.getElementById('audit-completed').textContent=fmtDT(t.updated);}else{cw.style.display='none';}
+  document.getElementById('tmod').style.display='flex';
+}
 
 function clrForm(){['fn','fas','ftg','fno','ft'].forEach(id=>document.getElementById(id).value='');populateCatSelect();const ct=tab!=='All'&&tab!=='History'&&cats.find(c=>c.name===tab)?tab:(cats[0]&&cats[0].name)||'Personal';document.getElementById('fc').value=ct;document.getElementById('fpr').value='Medium';document.getElementById('fst').value='Not Started';document.getElementById('fpc').value=0;document.getElementById('frm').value='';document.getElementById('fron').checked=false;document.getElementById('frn').value=1;document.getElementById('fru').value='days';document.getElementById('frf').value='due';document.getElementById('fre').value='';togRec();}
 
@@ -829,20 +848,6 @@ async function delTask(id){if(!confirm('Delete this task?'))return;const t=tasks
 async function togDone(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.status=t.status==='Complete'?'Not Started':'Complete';t.pct=t.status==='Complete'?100:0;t.updated=new Date().toISOString();localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);if(t.status==='Complete'&&t.recur){const nx=nextOcc(t);if(nx){tasks.push(nx);await upsertTask(nx);toast(`Next due ${fmt(nx.due)} ✓`);}else toast(`Complete — no more recurrences.`);}dash();render();}
 
 async function togCheckItem(taskId,idx){const t=tasks.find(x=>x.id===taskId);if(!t||!t.checklist)return;t.checklist[idx].done=!t.checklist[idx].done;t.updated=new Date().toISOString();const total=t.checklist.length,done=t.checklist.filter(x=>x.done).length;if(total>0)t.pct=Math.round(done/total*100);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();}
-
-// ── Swipe gestures ────────────────────────────────────────────────────
-function initSwipe(el,taskId){
-  let sx=0,dx=0,swiping=false;
-  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;swiping=true;},{passive:true});
-  el.addEventListener('touchmove',e=>{if(!swiping)return;dx=e.touches[0].clientX-sx;el.style.transform=`translateX(${Math.max(-80,Math.min(80,dx))}px)`;e.stopPropagation();},{passive:true});
-  el.addEventListener('touchend',()=>{
-    swiping=false;el.style.transform='';el.style.transition='transform .3s';
-    setTimeout(()=>el.style.transition='',300);
-    if(dx<-60)delTask(taskId);
-    else if(dx>60)togDone(taskId);
-    dx=0;
-  });
-}
 
 // ── Render ────────────────────────────────────────────────────────────
 function render(){
@@ -887,8 +892,6 @@ function render(){
   fl.sort((a,b)=>{if(fo==='priority')return(po[a.priority]||1)-(po[b.priority]||1);if(fo==='name')return a.name.localeCompare(b.name);if(fo==='pct')return(b.pct||0)-(a.pct||0);if(!a.due)return 1;if(!b.due)return-1;return new Date(a.due)-new Date(b.due);});
   if(!fl.length){list.innerHTML='<div class="empty"><div style="font-size:2.5rem">✅</div><p style="margin-top:.5rem;">No tasks here — add one!</p></div>';return;}
   list.innerHTML=fl.map(t=>{const d=t.due?new Date(t.due+'T00:00:00'):null;const od=d&&d<today&&t.status!=='Complete';const sn=d&&d>=today&&d<=soon&&t.status!=='Complete';return card(t,od,sn);}).join('');
-  // Init swipe on each card
-  list.querySelectorAll('.tc').forEach(el=>{const id=el.dataset.id;if(id)initSwipe(el,id);});
 }
 
 function card(t,od,sn){
@@ -1105,9 +1108,19 @@ async function clearAll(){if(!confirm('Delete ALL tasks? Cannot be undone.'))ret
 function cm(id){document.getElementById(id).style.display='none';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmt(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):''; }
+function fmtDT(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});}
 function hexRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500);}
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.style.display='none';}));
+
+// Register service worker for PWA
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/TaskMaster/sw.js')
+      .then(()=>console.log('TaskMaster SW registered'))
+      .catch(e=>console.log('SW registration failed:',e));
+  });
+}
 
 init();
 </script>
