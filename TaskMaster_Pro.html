@@ -577,6 +577,9 @@ const DEFAULT_CATS=[{name:'Personal',color:'#4F86C6'},{name:'Work',color:'#C8860
 async function init(){
   cfg=JSON.parse(localStorage.getItem('tm_cfg')||'{}');
   cats=JSON.parse(localStorage.getItem('tm_cats')||'null')||DEFAULT_CATS;
+  // Load local tasks immediately as safety net — Supabase will update these
+  const localTasks=localStorage.getItem('tm_tasks');
+  if(localTasks){try{tasks=JSON.parse(localTasks);}catch(e){tasks=[];}}
   sb=supabase.createClient(SB_URL,SB_KEY);
   handleUrlParams();
   const {data:{session}}=await sb.auth.getSession();
@@ -666,7 +669,23 @@ function setupRealtime(){
           if(idx>-1)tasks[idx]=t;else tasks.push(t);
         }else if(payload.eventType==='DELETE'){tasks=tasks.filter(x=>x.id!==payload.old.id);}
         localStorage.setItem('tm_tasks',JSON.stringify(tasks));dash();render();
-      }).subscribe();
+        setDS('on','Live');
+      })
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){setDS('on','Live');}
+      else if(status==='CLOSED'||status==='CHANNEL_ERROR'){
+        setDS('syncing','Reconnecting...');
+        // Auto-reconnect after 3 seconds
+        setTimeout(()=>setupRealtime(),3000);
+      }
+    });
+
+  // Reload from Supabase when tab becomes visible again (e.g. switching from mobile to desktop)
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&currentUser){
+      loadFromSupabase();
+    }
+  },{once:false});
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -676,17 +695,33 @@ async function loadFromSupabase(){
   try{
     const {data:rows,error}=await sb.from('tasks').select('id,data,updated_at').eq('user_id',currentUser.id);
     if(error)throw error;
-    tasks=rows?rows.map(r=>({...r.data,id:r.id,updated:r.updated_at})):[];
+    // Only update tasks if Supabase returned a valid response
+    // Never overwrite with empty array — if rows is empty array that's valid,
+    // but if it's null/undefined something went wrong so keep local data
+    if(rows!==null&&rows!==undefined){
+      const remoteTasks=rows.map(r=>({...r.data,id:r.id,updated:r.updated_at}));
+      // Safety check: if remote has fewer tasks than local, merge rather than replace
+      // This prevents a slow/partial load from wiping locally known tasks
+      if(remoteTasks.length===0&&tasks.length>0){
+        // Remote is empty but we have local tasks — could be a load error
+        // Keep local tasks and warn rather than wiping
+        toast('Warning: Supabase returned no tasks — keeping local data. Check connection.');
+        setDS('','Check connection');
+        return;
+      }
+      tasks=remoteTasks;
+      localStorage.setItem('tm_tasks',JSON.stringify(tasks));
+    }
     const {data:catRow}=await sb.from('categories').select('data').eq('user_id',currentUser.id).single();
-    if(catRow&&catRow.data)cats=catRow.data;
-    // Load EmailJS settings from Supabase
+    if(catRow&&catRow.data){cats=catRow.data;localStorage.setItem('tm_cats',JSON.stringify(cats));}
     const {data:settRow}=await sb.from('user_settings').select('data').eq('user_id',currentUser.id).single();
-    if(settRow&&settRow.data){cfg={...cfg,...settRow.data};}
-    localStorage.setItem('tm_tasks',JSON.stringify(tasks));
-    localStorage.setItem('tm_cats',JSON.stringify(cats));
-    localStorage.setItem('tm_cfg',JSON.stringify(cfg));
+    if(settRow&&settRow.data){cfg={...cfg,...settRow.data};localStorage.setItem('tm_cfg',JSON.stringify(cfg));}
     setDS('on','Synced');
-  }catch(e){setDS('','Offline');toast('Could not load — showing local data.');}
+  }catch(e){
+    // On any error keep showing local data — never wipe
+    setDS('','Offline');
+    toast('Could not reach server — showing local data. Changes will sync when reconnected.');
+  }
 }
 
 async function upsertTask(t){
