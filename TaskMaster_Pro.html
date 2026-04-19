@@ -1074,16 +1074,19 @@ function renderCal(){
 // ── Dashboard ─────────────────────────────────────────────────────────
 function dash(){
   const today=new Date();today.setHours(0,0,0,0);
-  const todayStr=today.toISOString().split('T')[0];
+  // Use local date string to avoid UTC offset issues (important for Australian timezones)
+  const todayLocal=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const soon=new Date(today);soon.setDate(soon.getDate()+7);
   const act=tasks.filter(t=>t.status!=='Complete');
-  const completedToday=tasks.filter(t=>t.status==='Complete'&&t.updated&&t.updated.startsWith(todayStr)).length;
+  // Compare using local date by converting the stored UTC timestamp to local date
+  const completedToday=tasks.filter(t=>{
+    if(t.status!=='Complete'||!t.updated)return false;
+    const updLocal=new Date(t.updated);
+    const updStr=`${updLocal.getFullYear()}-${String(updLocal.getMonth()+1).padStart(2,'0')}-${String(updLocal.getDate()).padStart(2,'0')}`;
+    return updStr===todayLocal;
+  }).length;
   const vals=[act.length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today).length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon).length,tasks.filter(t=>t.status==='In Progress').length,completedToday,act.filter(t=>t.recur).length];
   vals.forEach((v,i)=>{const e=document.getElementById('s'+i);if(e)e.textContent=v;const p=document.getElementById('ds'+i);if(p)p.textContent=v;});
-  // Update labels
-  const s4l=document.getElementById('s4-label');if(s4l)s4l.textContent='Done Today';
-  const dp4=document.getElementById('dp4');if(dp4)dp4.childNodes[0].textContent='✅ '+completedToday+' ';
-  const stat4=document.querySelector('.stat.s-dn .stat-l');if(stat4)stat4.textContent='Done Today';
   const catCounts=cats.map(c=>({c,n:act.filter(t=>t.category===c.name).length}));
   const mx=Math.max(...catCounts.map(x=>x.n),1);
   document.getElementById('chart-cat').innerHTML=catCounts.map(({c,n})=>`<div class="bar-row"><span class="bar-lbl">${esc(c.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/mx*100)}%;background:${c.color}"></div></div><span class="bar-n">${n}</span></div>`).join('');
