@@ -137,6 +137,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cal-cell.today{background:#EBF3FB}
 .cal-cell.today .cal-date{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .cal-cell.other-month{background:var(--surface2);opacity:.6}
+.cal-cell.od-day{border-left:3px solid #E24B4A;}
 .cal-date{font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:.25rem;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .cal-task-dot{font-size:.68rem;padding:.12rem .35rem;border-radius:4px;margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500}
 .cal-more{font-size:.65rem;color:var(--text3);font-style:italic}
@@ -366,7 +367,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <span class="dash-pill dp-ov" onclick="event.stopPropagation();pillFilter('overdue')" id="dp1">⚠️ <span id="ds1">0</span> Overdue</span>
         <span class="dash-pill dp-sn" onclick="event.stopPropagation();pillFilter('soon')" id="dp2">📅 <span id="ds2">0</span> Due Soon</span>
         <span class="dash-pill dp-ip" onclick="event.stopPropagation();pillFilter('inprogress')" id="dp3">🔄 <span id="ds3">0</span> In Progress</span>
-        <span class="dash-pill dp-dn" onclick="event.stopPropagation();pillFilter('complete')" id="dp4">✅ <span id="ds4">0</span> Done</span>
+        <span class="dash-pill dp-dn" onclick="event.stopPropagation();pillFilter('complete')" id="dp4">✅ <span id="ds4">0</span> Done Today</span>
         <span class="dash-pill dp-rc" onclick="event.stopPropagation();pillFilter('recurring')" id="dp5">🔁 <span id="ds5">0</span> Recurring</span>
       </div>
       <div class="dash-chevron" id="dash-chevron">▼</div>
@@ -377,7 +378,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="stat s-ov"><div class="stat-n" id="s1">0</div><div class="stat-l">Overdue</div></div>
         <div class="stat s-sn"><div class="stat-n" id="s2">0</div><div class="stat-l">Due 7 Days</div></div>
         <div class="stat s-ip"><div class="stat-n" id="s3">0</div><div class="stat-l">In Progress</div></div>
-        <div class="stat s-dn"><div class="stat-n" id="s4">0</div><div class="stat-l">Completed</div></div>
+        <div class="stat s-dn"><div class="stat-n" id="s4">0</div><div class="stat-l">Done Today</div></div>
         <div class="stat s-rc"><div class="stat-n" id="s5">0</div><div class="stat-l">Recurring</div></div>
       </div>
       <div class="charts-row">
@@ -499,7 +500,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
     <div class="modal-btns">
-      <button class="btn btn-outline" onclick="cm('tmod')">Cancel</button>
+      <button class="btn btn-outline" onclick="cmTask()">Cancel</button>
       <button class="btn btn-outline btn-sm" onclick="printTask(null, true)" style="margin-right:auto;">🖨 Print</button>
       <button class="btn btn-navy" onclick="saveTask()">Save Task</button>
     </div>
@@ -537,8 +538,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <button onclick="copyPrompt()" id="copy-prompt-btn" class="btn btn-navy btn-sm" style="margin-top:.55rem;">Copy Prompt</button>
       </div>
       <div class="cp">
+        <h3>✨ Natural Language Task Input</h3>
+        <p>Type a task in plain English — Claude will parse it and pre-fill the form.</p>
+        <textarea id="nl-input" placeholder='e.g. "Pay electricity bill by Friday high priority Finance remind 1 day before"'></textarea>
+        <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" id="nl-btn" onclick="nlImport()">✨ Parse Task</button>
+      </div>
+      <div class="cp">
         <h3>📋 Paste JSON from Claude</h3>
-        <p>Paste JSON from Claude directly below.</p>
+        <p>Alternatively paste JSON from Claude directly below.</p>
         <textarea id="cjson" placeholder='{"name":"Task","category":"Personal","priority":"Medium","due":"2025-05-01","reminder":"1day"}'></textarea>
         <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" onclick="claudeImport()">Import Task</button>
       </div>
@@ -644,7 +651,7 @@ async function showMain(){
   updateClaudePrompt();
   await loadFromSupabase();
   buildTabs();dash();render();
-  setupRealtime();checkReminders();
+  setupRealtime();checkReminders();checkWeeklyBackup();
   if(window._prefill){setTimeout(()=>{openAddPrefill(window._prefill);window._prefill=null;},400);}
 }
 
@@ -969,6 +976,7 @@ function card(t,od,sn){
   </div>
   <div class="t-acts">
     <button class="ib" onclick="openEdit('${t.id}')" title="Edit">✏️</button>
+    <button class="ib" onclick="shareTask('${t.id}')" title="Share task">📤</button>
     <button class="ib" onclick="printTask('${t.id}')" title="Print job sheet">🖨️</button>
     <button class="ib" onclick="delTask('${t.id}')" title="Delete">🗑️</button>
   </div>
@@ -986,8 +994,34 @@ function renderCal(){
   const today=new Date();today.setHours(0,0,0,0);
   const wrap=document.getElementById('cal-grid-wrap');
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Build task map including completed tasks (shown grey)
   const tasksByDate={};
-  tasks.filter(t=>t.due&&t.status!=='Complete').forEach(t=>{if(!tasksByDate[t.due])tasksByDate[t.due]=[];tasksByDate[t.due].push(t);});
+  tasks.filter(t=>t.due).forEach(t=>{
+    if(!tasksByDate[t.due])tasksByDate[t.due]=[];
+    tasksByDate[t.due].push(t);
+  });
+
+  // Helper to open add task with date pre-filled
+  function calAddTask(ds){
+    cm('smod'); // close settings if open
+    setTimeout(()=>{
+      openAdd();
+      document.getElementById('fd').value=ds;
+    },50);
+  }
+
+  // Build task dot HTML with overdue/complete styling
+  function taskDot(t){
+    const c=getCat(t.category);
+    const d=t.due?new Date(t.due+'T00:00:00'):null;
+    const isOd=d&&d<today&&t.status!=='Complete';
+    const isDone=t.status==='Complete';
+    const bg=isDone?'#F0F2F8':isOd?'#FCEBEB':hexRgba(c.color,.15);
+    const col=isDone?'#9AA0BC':isOd?'#C03030':c.color;
+    const strike=isDone?'text-decoration:line-through;':'' ;
+    return `<div class="cal-task-dot" style="background:${bg};color:${col};${strike}" onclick="event.stopPropagation();openEdit('${t.id}')" title="${esc(t.name)}">${isDone?'✓ ':''}${esc(t.name)}</div>`;
+  }
 
   if(calView==='week'){
     const dow=calDate.getDay();
@@ -995,19 +1029,23 @@ function renderCal(){
     const weekDates=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
     document.getElementById('cal-title').textContent=`${fmt(weekDates[0].toISOString().split('T')[0])} — ${fmt(weekDates[6].toISOString().split('T')[0])}`;
     let html='<div class="cal-grid weekly">';
+    // On mobile show short day names
     days.forEach(d=>html+=`<div class="cal-day-hdr">${d}</div>`);
     weekDates.forEach(d=>{
       const ds=d.toISOString().split('T')[0];
       const isToday=d.getTime()===today.getTime();
       const dayTasks=tasksByDate[ds]||[];
-      html+=`<div class="cal-cell ${isToday?'today':''}" onclick="openAdd()">
+      const hasOverdue=dayTasks.some(t=>new Date(t.due+'T00:00:00')<today&&t.status!=='Complete');
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasOverdue?'od-day':''}" onclick="calAddTask('${ds}')">
         <div class="cal-date">${d.getDate()}</div>
-        ${dayTasks.slice(0,4).map(t=>{const c=getCat(t.category);return`<div class="cal-task-dot" style="background:${hexRgba(c.color,.15)};color:${c.color};" onclick="event.stopPropagation();openEdit('${t.id}')">${esc(t.name)}</div>`;}).join('')}
+        ${dayTasks.slice(0,4).map(t=>taskDot(t)).join('')}
         ${dayTasks.length>4?`<div class="cal-more">+${dayTasks.length-4} more</div>`:''}
       </div>`;
     });
     html+='</div>';
     wrap.innerHTML=html;
+    // Make calAddTask available globally for onclick
+    wrap.calAddTask=calAddTask;
   } else {
     const year=calDate.getFullYear(),month=calDate.getMonth();
     const firstDay=new Date(year,month,1);const lastDay=new Date(year,month+1,0);
@@ -1019,23 +1057,33 @@ function renderCal(){
       const date=new Date(year,month,d);const ds=date.toISOString().split('T')[0];
       const isToday=date.getTime()===today.getTime();
       const dayTasks=tasksByDate[ds]||[];
-      html+=`<div class="cal-cell ${isToday?'today':''}" onclick="openAdd()">
+      const hasOverdue=dayTasks.some(t=>new Date(t.due+'T00:00:00')<today&&t.status!=='Complete');
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasOverdue?'od-day':''}" onclick="calAddTask('${ds}')">
         <div class="cal-date">${d}</div>
-        ${dayTasks.slice(0,2).map(t=>{const c=getCat(t.category);return`<div class="cal-task-dot" style="background:${hexRgba(c.color,.15)};color:${c.color};" onclick="event.stopPropagation();openEdit('${t.id}')">${esc(t.name)}</div>`;}).join('')}
+        ${dayTasks.slice(0,2).map(t=>taskDot(t)).join('')}
         ${dayTasks.length>2?`<div class="cal-more">+${dayTasks.length-2}</div>`:''}
       </div>`;
     }
     html+='</div>';wrap.innerHTML=html;
   }
+
+  // Expose calAddTask for inline onclick handlers
+  window.calAddTask=calAddTask;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
 function dash(){
   const today=new Date();today.setHours(0,0,0,0);
+  const todayStr=today.toISOString().split('T')[0];
   const soon=new Date(today);soon.setDate(soon.getDate()+7);
   const act=tasks.filter(t=>t.status!=='Complete');
-  const vals=[act.length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today).length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon).length,tasks.filter(t=>t.status==='In Progress').length,tasks.filter(t=>t.status==='Complete').length,act.filter(t=>t.recur).length];
+  const completedToday=tasks.filter(t=>t.status==='Complete'&&t.updated&&t.updated.startsWith(todayStr)).length;
+  const vals=[act.length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today).length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon).length,tasks.filter(t=>t.status==='In Progress').length,completedToday,act.filter(t=>t.recur).length];
   vals.forEach((v,i)=>{const e=document.getElementById('s'+i);if(e)e.textContent=v;const p=document.getElementById('ds'+i);if(p)p.textContent=v;});
+  // Update labels
+  const s4l=document.getElementById('s4-label');if(s4l)s4l.textContent='Done Today';
+  const dp4=document.getElementById('dp4');if(dp4)dp4.childNodes[0].textContent='✅ '+completedToday+' ';
+  const stat4=document.querySelector('.stat.s-dn .stat-l');if(stat4)stat4.textContent='Done Today';
   const catCounts=cats.map(c=>({c,n:act.filter(t=>t.category===c.name).length}));
   const mx=Math.max(...catCounts.map(x=>x.n),1);
   document.getElementById('chart-cat').innerHTML=catCounts.map(({c,n})=>`<div class="bar-row"><span class="bar-lbl">${esc(c.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/mx*100)}%;background:${c.color}"></div></div><span class="bar-n">${n}</span></div>`).join('');
@@ -1122,6 +1170,70 @@ function printSummary(){
   setTimeout(()=>{area.style.display='none';area.innerHTML='';},1000);
 }
 
+// ── Share task ────────────────────────────────────────────────────────
+async function shareTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const cl=t.checklist||[];
+  const clText=cl.length?'\n\nChecklist:\n'+cl.map(i=>(i.done?'✅ ':'☐ ')+i.text).join('\n'):'';
+  const attText=t.attachments&&t.attachments.length?'\n\nAttachments:\n'+t.attachments.map(a=>'📎 '+a.name).join('\n'):'';
+  const text=`📋 ${t.name}${t.due?'\nDue: '+fmt(t.due)+(t.time?' at '+t.time:''):''}${t.priority?'\nPriority: '+t.priority:''}${t.status?'\nStatus: '+t.status:''}${t.assignee?'\nAssigned to: '+t.assignee:''}${t.notes?'\n\nNotes: '+t.notes:''}${clText}${attText}\n\n— TaskMaster`;
+  if(navigator.share){
+    try{await navigator.share({title:t.name,text});toast('Shared ✓');}
+    catch(e){if(e.name!=='AbortError')copyToClipboard(text);}
+  } else {
+    copyToClipboard(text);
+  }
+}
+
+function copyToClipboard(text){
+  navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard ✓')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied to clipboard ✓');
+  });
+}
+
+// ── Weekly email backup ───────────────────────────────────────────────
+function checkWeeklyBackup(){
+  if(!cfg.ejsKey||!cfg.ejsSvc||!cfg.ejsTpl||!cfg.email)return;
+  const lastBackup=localStorage.getItem('tm_last_backup');
+  const now=new Date();
+  if(lastBackup){const daysSince=(now-new Date(lastBackup))/(1000*60*60*24);if(daysSince<7)return;}
+  sendWeeklyBackup();localStorage.setItem('tm_last_backup',now.toISOString());
+}
+
+function sendWeeklyBackup(){
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+  s.onload=()=>{
+    emailjs.init(cfg.ejsKey);
+    const active=tasks.filter(t=>t.status!=='Complete');
+    const completed=tasks.filter(t=>t.status==='Complete');
+    const lines=[];
+    lines.push(`TaskMaster Weekly Backup — ${new Date().toLocaleDateString('en-AU')}`);
+    lines.push(`Total: ${tasks.length} tasks (${active.length} active, ${completed.length} completed)\n`);
+    lines.push('═══ ACTIVE TASKS ═══');
+    active.forEach(t=>{
+      lines.push(`\n▸ ${t.name}`);
+      lines.push(`  ${t.category} | ${t.priority} | ${t.status}`);
+      if(t.due)lines.push(`  Due: ${fmt(t.due)}${t.time?' at '+t.time:''}`);
+      if(t.assignee)lines.push(`  Assigned: ${t.assignee}`);
+      if(t.notes)lines.push(`  Notes: ${t.notes}`);
+      if(t.checklist&&t.checklist.length){
+        lines.push(`  Checklist (${t.checklist.filter(x=>x.done).length}/${t.checklist.length}):`);
+        t.checklist.forEach(i=>lines.push(`    ${i.done?'✅':'☐'} ${i.text}`));
+      }
+      if(t.recur)lines.push(`  Recurring: every ${t.recurN} ${t.recurUnit}`);
+    });
+    if(completed.length){
+      lines.push('\n═══ COMPLETED TASKS ═══');
+      completed.slice(0,20).forEach(t=>{lines.push(`\n✅ ${t.name} (${t.category})`);if(t.updated)lines.push(`   Completed: ${fmtDT(t.updated)}`);});
+      if(completed.length>20)lines.push(`\n...and ${completed.length-20} more`);
+    }
+    lines.push('\n— TaskMaster Auto Backup');
+    emailjs.send(cfg.ejsSvc,cfg.ejsTpl,{to_email:cfg.email,subject:`TaskMaster Backup ${new Date().toLocaleDateString('en-AU')} — ${active.length} active tasks`,message:lines.join('\n')})
+      .then(()=>toast('Weekly backup sent ✓')).catch(e=>console.log('Backup error:',e));
+  };
+  document.head.appendChild(s);
+}
+
 // ── Reminders ─────────────────────────────────────────────────────────
 function checkReminders(){if(!cfg.ejsKey||!cfg.ejsSvc||!cfg.ejsTpl||!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td);}
 function sendEmail(items){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{emailjs.init(cfg.ejsKey);const body=items.map(t=>`• ${t.name} — Due: ${t.due}${t.time?' at '+t.time:''} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(cfg.ejsSvc,cfg.ejsTpl,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast('Reminder sent ✓')).catch(e=>toast('Email error: '+(e.text||e)));};document.head.appendChild(s);}
@@ -1129,6 +1241,62 @@ function testEmail(){saveCfgLocal();sendEmail([{name:'Test Reminder',due:new Dat
 
 // ── Claude import ─────────────────────────────────────────────────────
 function copyPrompt(){const el=document.getElementById('claude-context-prompt');navigator.clipboard.writeText(el.textContent).then(()=>{const btn=document.getElementById('copy-prompt-btn');btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy Prompt',2000);}).catch(()=>toast('Select and copy manually.'));}
+// ── Natural language import ───────────────────────────────────────────
+async function nlImport(){
+  const raw=document.getElementById('nl-input').value.trim();
+  if(!raw){toast('Type a task description first.');return;}
+  const btn=document.getElementById('nl-btn');
+  btn.textContent='Parsing...';btn.disabled=true;
+  const catNames=cats.map(c=>c.name).join(', ');
+  const today=new Date().toISOString().split('T')[0];
+  const prompt=`Parse this task description into JSON. Today's date is ${today}.
+Task description: "${raw}"
+
+Return ONLY a JSON object with these fields (no markdown, no explanation):
+{
+  "name": "task name",
+  "category": "one of: ${catNames}",
+  "priority": "High, Medium, or Low",
+  "due": "YYYY-MM-DD or empty string",
+  "time": "HH:MM or empty string",
+  "reminder": "1hour, 1day, 3days, 1week or empty string",
+  "tags": [],
+  "notes": "",
+  "checklist": []
+}
+If a field is not mentioned use sensible defaults. Category defaults to Personal if unclear.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:500,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'';
+    const clean=text.replace(/```json|```/g,'').trim();
+    const d=JSON.parse(clean);
+    const t={id:'task_'+Date.now(),name:d.name||raw,category:d.category||'Personal',
+      priority:d.priority||'Medium',due:d.due||'',time:d.time||'',
+      status:'Not Started',assignee:'',pct:0,reminder:d.reminder||'',
+      tags:d.tags||[],notes:d.notes||'',checklist:d.checklist||[],
+      attachments:[],recur:false,recurN:null,recurUnit:null,recurFrom:'due',
+      recurEnd:'',created:new Date().toISOString(),updated:new Date().toISOString()};
+    // Close settings and open pre-filled add form
+    cm('smod');
+    setTimeout(()=>{openAddPrefill(t);},200);
+    document.getElementById('nl-input').value='';
+    toast(`Parsed: "${t.name}" — check and save ✓`);
+  }catch(e){
+    toast('Could not parse — try the JSON import instead.');
+    console.log('NL parse error:',e);
+  }
+  btn.textContent='✨ Parse Task';btn.disabled=false;
+}
+
 async function claudeImport(){const raw=document.getElementById('cjson').value.trim();if(!raw){toast('Paste JSON first.');return;}try{const d=JSON.parse(raw);const t={id:'task_'+Date.now(),name:d.name||'Unnamed',category:d.category||'Personal',priority:d.priority||'Medium',due:d.due||'',time:d.time||'',status:d.status||'Not Started',assignee:d.assignee||'',pct:parseInt(d.pct)||0,reminder:d.reminder||'',tags:typeof d.tags==='string'?d.tags.split(',').map(x=>x.trim()).filter(Boolean):(d.tags||[]),notes:d.notes||'',checklist:[],attachments:[],recur:!!d.recur,recurN:d.recurN||null,recurUnit:d.recurUnit||null,recurFrom:d.recurFrom||'due',recurEnd:d.recurEnd||'',created:new Date().toISOString(),updated:new Date().toISOString()};tasks.push(t);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();document.getElementById('cjson').value='';toast(`"${t.name}" imported ✓`);}catch(e){toast('Invalid JSON.');}}
 
 // ── Settings ──────────────────────────────────────────────────────────
@@ -1143,12 +1311,27 @@ async function clearAll(){if(!confirm('Delete ALL tasks? Cannot be undone.'))ret
 
 // ── Utils ─────────────────────────────────────────────────────────────
 function cm(id){document.getElementById(id).style.display='none';}
+
+function cmTask(){
+  const hasChanges=document.getElementById('fn').value.trim()!==''||
+    clItems.length>0||pendingFiles.filter(f=>f!==null).length>0||
+    document.getElementById('fno').value.trim()!=='';
+  if(hasChanges&&!confirm('You have unsaved changes. Close without saving?'))return;
+  cm('tmod');
+}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmt(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):''; }
 function fmtDT(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});}
 function hexRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500);}
-document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.style.display='none';}));
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
+  if(e.target===o){if(o.id==='tmod')cmTask();else o.style.display='none';}
+}));
+// Android back button intercept
+window.addEventListener('popstate',()=>{
+  if(document.getElementById('tmod').style.display!=='none'){cmTask();history.pushState(null,'',location.href);}
+});
+history.pushState(null,'',location.href);
 
 // Register service worker for PWA
 if('serviceWorker' in navigator){
