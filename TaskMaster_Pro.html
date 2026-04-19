@@ -257,8 +257,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media print {
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
-  #print-area { position: fixed; inset: 0; background: #fff; padding: 0; }
+  #print-area {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+  .print-sheet {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
   .no-print { display: none !important; }
+  @page { margin: 0.5cm; size: A4 portrait; }
 }
 .print-sheet { font-family: Arial, sans-serif; max-width: 794px; margin: 0 auto; background: #fff; }
 .print-header { background: #1F3864; color: #fff; padding: 1.2rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
