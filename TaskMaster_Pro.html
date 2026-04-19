@@ -574,7 +574,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="help-block">
           <p>Welcome to TaskMaster! Here's what to do first:</p>
           <ol style="padding-left:1.2rem;font-size:.83rem;color:var(--text2);line-height:2;">
-            <li>Set up <strong>Email Reminders</strong> below to receive task reminders and weekly backups</li>
+            <li>Enter your <strong>email address</strong> below in Email Reminders to receive task reminders and weekly backups</li>
             <li>Customise your <strong>Categories</strong> in Settings to match your workflow</li>
             <li>On Android — tap <strong>Add to Home Screen</strong> in Chrome to install the app</li>
             <li>Use the <strong>Claude Voice Import</strong> shortcut to add tasks hands-free</li>
@@ -584,21 +584,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- EmailJS Setup -->
       <div class="ss">
-        <h3>📧 Email Reminders Setup — EmailJS</h3>
+        <h3>📧 Email Reminders Setup</h3>
         <div class="help-block">
-          <p style="margin-bottom:.7rem;">EmailJS lets TaskMaster send reminder emails and weekly backups for free (200 emails/month). Follow these steps:</p>
-          <div class="help-step"><span class="help-step-n">1</span><span>Go to <a href="https://emailjs.com" target="_blank" style="color:var(--blue);font-weight:600;">emailjs.com</a> and create a free account.</span></div>
-          <div class="help-step"><span class="help-step-n">2</span><span>Add an <strong>Email Service</strong> — connect your Gmail account. Copy the <strong>Service ID</strong>.</span></div>
-          <div class="help-step"><span class="help-step-n">3</span><span>Create an <strong>Email Template</strong>. Add three variables to the template body: <code>{{to_email}}</code> <code>{{subject}}</code> <code>{{message}}</code>. Copy the <strong>Template ID</strong>.</span></div>
-          <div class="help-step"><span class="help-step-n">4</span><span>Go to <strong>Account → API Keys</strong> and copy your <strong>Public Key</strong>.</span></div>
-          <div class="help-step"><span class="help-step-n">5</span><span>Enter all four values below and tap <strong>Save &amp; Test</strong>.</span></div>
+          <p>TaskMaster can send you task reminders and a weekly backup email. Just enter your email address below — everything else is already configured.</p>
         </div>
         <div class="sr" style="margin-top:.75rem;"><span>Your Email</span><input type="email" id="sem" placeholder="where reminders are sent" /></div>
-        <div class="sr"><span>Public Key</span><input type="text" id="sek" placeholder="from Account → API Keys" /></div>
-        <div class="sr"><span>Service ID</span><input type="text" id="sev" placeholder="service_xxxxxxx" /></div>
-        <div class="sr"><span>Template ID</span><input type="text" id="set2" placeholder="template_xxxxxxx" /></div>
         <div style="display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap;">
-          <button class="btn btn-navy btn-sm" onclick="saveSettings()">💾 Save Settings</button>
+          <button class="btn btn-navy btn-sm" onclick="saveSettings()">💾 Save</button>
           <button class="btn btn-green btn-sm" onclick="testEmail()">📧 Send Test Email</button>
         </div>
       </div>
@@ -666,6 +658,10 @@ const SB_URL='https://yxnriotzxqeryqndyfjo.supabase.co';
 const SB_KEY='sb_publishable_VgZTgCwoLpnNU3Cb9HKWoQ_FHu4R0js';
 const STORAGE_BUCKET='task-attachments';
 const APP_URL='https://lathjohn-me.github.io/TaskMaster/TaskMaster_Pro.html';
+// EmailJS — hardcoded shared account (each user only needs to enter their email address)
+const EJS_KEY='ktPVni5S7ePWHjB2a';
+const EJS_SVC='service_io8hbpi';
+const EJS_TPL='template_mkjoqy5';
 
 // ── State ─────────────────────────────────────────────────────────────
 let tasks=[],cfg={},cats=[],tab='All',eid=null;
@@ -845,8 +841,7 @@ async function saveCatsRemote(){
 async function saveSettingsRemote(){
   if(!sb||!currentUser)return;
   try{
-    const sett={email:cfg.email,ejsKey:cfg.ejsKey,ejsSvc:cfg.ejsSvc,ejsTpl:cfg.ejsTpl};
-    await sb.from('user_settings').upsert({user_id:currentUser.id,data:sett},{onConflict:'user_id'});
+    await sb.from('user_settings').upsert({user_id:currentUser.id,data:{email:cfg.email}},{onConflict:'user_id'});
   }catch(e){}
 }
 
@@ -1290,7 +1285,7 @@ function copyToClipboard(text){
 
 // ── Weekly email backup ───────────────────────────────────────────────
 function checkWeeklyBackup(){
-  if(!cfg.ejsKey||!cfg.ejsSvc||!cfg.ejsTpl||!cfg.email)return;
+  if(!cfg.email)return;
   const lastBackup=localStorage.getItem('tm_last_backup');
   const now=new Date();
   if(lastBackup){const daysSince=(now-new Date(lastBackup))/(1000*60*60*24);if(daysSince<7)return;}
@@ -1300,7 +1295,7 @@ function checkWeeklyBackup(){
 function sendWeeklyBackup(){
   const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
   s.onload=()=>{
-    emailjs.init(cfg.ejsKey);
+    emailjs.init(EJS_KEY);
     const active=tasks.filter(t=>t.status!=='Complete');
     const completed=tasks.filter(t=>t.status==='Complete');
     const lines=[];
@@ -1325,15 +1320,15 @@ function sendWeeklyBackup(){
       if(completed.length>20)lines.push(`\n...and ${completed.length-20} more`);
     }
     lines.push('\n— TaskMaster Auto Backup');
-    emailjs.send(cfg.ejsSvc,cfg.ejsTpl,{to_email:cfg.email,subject:`TaskMaster Backup ${new Date().toLocaleDateString('en-AU')} — ${active.length} active tasks`,message:lines.join('\n')})
+    emailjs.send(EJS_SVC,EJS_TPL,{to_email:cfg.email,subject:`TaskMaster Backup ${new Date().toLocaleDateString('en-AU')} — ${active.length} active tasks`,message:lines.join('\n')})
       .then(()=>toast('Weekly backup sent ✓')).catch(e=>console.log('Backup error:',e));
   };
   document.head.appendChild(s);
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────
-function checkReminders(){if(!cfg.ejsKey||!cfg.ejsSvc||!cfg.ejsTpl||!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td);}
-function sendEmail(items){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{emailjs.init(cfg.ejsKey);const body=items.map(t=>`• ${t.name} — Due: ${t.due}${t.time?' at '+t.time:''} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(cfg.ejsSvc,cfg.ejsTpl,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast('Reminder sent ✓')).catch(e=>toast('Email error: '+(e.text||e)));};document.head.appendChild(s);}
+function checkReminders(){if(!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td);}
+function sendEmail(items){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{emailjs.init(EJS_KEY);const body=items.map(t=>`• ${t.name} — Due: ${t.due}${t.time?' at '+t.time:''} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(EJS_SVC,EJS_TPL,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast('Reminder sent ✓')).catch(e=>toast('Email error: '+(e.text||e)));};document.head.appendChild(s);}
 function testEmail(){saveCfgLocal();sendEmail([{name:'Test Reminder',due:new Date().toISOString().split('T')[0],time:'',priority:'High',recur:false}]);}
 
 // ── Claude import ─────────────────────────────────────────────────────
@@ -1404,8 +1399,8 @@ function switchSettTab(tab){
   document.getElementById('stab-help').className='sett-tab'+(tab==='help'?' active':'');
 }
 
-function openSettings(){document.getElementById('sem').value=cfg.email||'';document.getElementById('sek').value=cfg.ejsKey||'';document.getElementById('sev').value=cfg.ejsSvc||'';document.getElementById('set2').value=cfg.ejsTpl||'';if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;renderCatSettings();updateClaudePrompt();document.getElementById('smod').style.display='flex';}
-function saveCfgLocal(){cfg.email=document.getElementById('sem').value.trim();cfg.ejsKey=document.getElementById('sek').value.trim();cfg.ejsSvc=document.getElementById('sev').value.trim();cfg.ejsTpl=document.getElementById('set2').value.trim();}
+function openSettings(){document.getElementById('sem').value=cfg.email||'';if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;renderCatSettings();updateClaudePrompt();document.getElementById('smod').style.display='flex';}
+function saveCfgLocal(){cfg.email=document.getElementById('sem').value.trim();}
 function saveSettings(){saveCfgLocal();localStorage.setItem('tm_cfg',JSON.stringify(cfg));saveSettingsRemote();toast('Settings saved ✓');}
 
 // ── Data ──────────────────────────────────────────────────────────────
