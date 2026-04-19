@@ -238,7 +238,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .add-cat-row input[type="text"]:focus{outline:none;border-color:var(--blue)}
 .add-cat-row input[type="color"]{width:34px;height:31px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;padding:2px;background:#fff}
 
-/* Claude panel */
+/* Settings tabs */
+.sett-tab{flex:1;padding:.38rem .7rem;border-radius:6px;border:none;cursor:pointer;font-size:.81rem;font-weight:600;font-family:'DM Sans',sans-serif;background:transparent;color:var(--text2);transition:all .15s}
+.sett-tab.active{background:var(--navy);color:#fff}
+.sett-tab:hover:not(.active){background:var(--border);color:var(--text)}
+/* Help blocks */
+.help-block{background:var(--surface2);border-radius:var(--radius-sm);padding:.7rem .9rem;margin-bottom:.5rem;font-size:.83rem;color:var(--text2);line-height:1.6}
+.help-step{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.55rem;font-size:.83rem;color:var(--text2)}
+.help-step-n{background:var(--navy);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:.1rem}
+.help-tip{padding:.35rem 0;font-size:.82rem;color:var(--text2);border-bottom:1px solid var(--border);line-height:1.5}
+.help-tip:last-child{border-bottom:none}
 .cp{background:linear-gradient(135deg,#EBF3FB,#F0EEFF);border:1.5px solid #C0D4F0;border-radius:var(--radius);padding:.95rem;margin-bottom:.82rem}
 .cp h3{font-size:.81rem;font-weight:700;color:var(--navy);margin-bottom:.32rem}
 .cp p{font-size:.76rem;color:var(--text2);margin-bottom:.45rem;line-height:1.5}
@@ -523,57 +532,130 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div id="smod" class="overlay" style="display:none;">
   <div class="modal">
     <h2>⚙ Settings</h2>
-    <div class="ss"><h3>Categories</h3>
-      <div class="cat-list" id="cat-list"></div>
-      <div class="add-cat-row">
-        <input type="text" id="new-cat-name" placeholder="New category name..." />
-        <input type="color" id="new-cat-color" value="#4F86C6" />
-        <button class="btn btn-blue btn-sm" onclick="addCat()">+ Add</button>
+
+    <!-- Settings tabs -->
+    <div style="display:flex;gap:.35rem;background:var(--surface2);padding:.3rem;border-radius:var(--radius-sm);margin-bottom:1.2rem;">
+      <button class="sett-tab active" id="stab-settings" onclick="switchSettTab('settings')">⚙ Settings</button>
+      <button class="sett-tab" id="stab-help" onclick="switchSettTab('help')">❓ Help &amp; Setup</button>
+    </div>
+
+    <!-- Tab 1: Settings -->
+    <div id="spanel-settings">
+      <div class="ss"><h3>Categories</h3>
+        <div class="cat-list" id="cat-list"></div>
+        <div class="add-cat-row">
+          <input type="text" id="new-cat-name" placeholder="New category name..." />
+          <input type="color" id="new-cat-color" value="#4F86C6" />
+          <button class="btn btn-blue btn-sm" onclick="addCat()">+ Add</button>
+        </div>
+      </div>
+      <div class="ss"><h3>Account</h3>
+        <div class="sr"><span id="acct-email" style="font-weight:600;color:var(--text);"></span><button class="btn btn-outline btn-sm" onclick="doSignOut()">Sign Out</button></div>
+      </div>
+      <div class="ss"><h3>Data</h3>
+        <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="exportData()">Export JSON</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('ifile').click()">Import JSON</button>
+          <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)" />
+          <button class="btn btn-red btn-sm" onclick="clearAll()">Clear All</button>
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-outline" onclick="cm('smod')">Close</button>
       </div>
     </div>
-    <div class="ss"><h3>Account</h3>
-      <div class="sr"><span id="acct-email" style="font-weight:600;color:var(--text);"></span><button class="btn btn-outline btn-sm" onclick="doSignOut()">Sign Out</button></div>
-    </div>
-    <div class="ss"><h3>Email Reminders — EmailJS</h3>
-      <p style="font-size:.78rem;color:var(--text2);margin-bottom:.55rem;">Free at <a href="https://emailjs.com" target="_blank" style="color:var(--blue);">emailjs.com</a>. Template needs <code style="background:var(--surface2);padding:0 3px;border-radius:3px;font-family:'DM Mono',monospace;font-size:.73rem;">{{to_email}}</code> <code style="background:var(--surface2);padding:0 3px;border-radius:3px;font-family:'DM Mono',monospace;font-size:.73rem;">{{subject}}</code> <code style="background:var(--surface2);padding:0 3px;border-radius:3px;font-family:'DM Mono',monospace;font-size:.73rem;">{{message}}</code></p>
-      <div class="sr"><span>Your Email</span><input type="email" id="sem" /></div>
-      <div class="sr"><span>Public Key</span><input type="text" id="sek" /></div>
-      <div class="sr"><span>Service ID</span><input type="text" id="sev" placeholder="service_xxxxxxx" /></div>
-      <div class="sr"><span>Template ID</span><input type="text" id="set2" placeholder="template_xxxxxxx" /></div>
-      <button class="btn btn-green btn-sm" style="margin-top:.45rem;" onclick="testEmail()">Send Test Email</button>
-    </div>
-    <div class="ss"><h3>Add Task from Claude — Voice / Mobile</h3>
-      <div class="cp-hint"><strong>Copy this prompt into Claude once per conversation:</strong></div>
-      <div class="cp-prompt-box">
-        <div class="lbl">Context prompt:</div>
-        <div class="prompt-txt" id="claude-context-prompt"></div>
-        <button onclick="copyPrompt()" id="copy-prompt-btn" class="btn btn-navy btn-sm" style="margin-top:.55rem;">Copy Prompt</button>
+
+    <!-- Tab 2: Help & Setup -->
+    <div id="spanel-help" style="display:none;">
+
+      <!-- Getting Started -->
+      <div class="ss">
+        <h3>👋 Getting Started</h3>
+        <div class="help-block">
+          <p>Welcome to TaskMaster! Here's what to do first:</p>
+          <ol style="padding-left:1.2rem;font-size:.83rem;color:var(--text2);line-height:2;">
+            <li>Set up <strong>Email Reminders</strong> below to receive task reminders and weekly backups</li>
+            <li>Customise your <strong>Categories</strong> in Settings to match your workflow</li>
+            <li>On Android — tap <strong>Add to Home Screen</strong> in Chrome to install the app</li>
+            <li>Use the <strong>Claude Voice Import</strong> shortcut to add tasks hands-free</li>
+          </ol>
+        </div>
       </div>
-      <div class="cp">
+
+      <!-- EmailJS Setup -->
+      <div class="ss">
+        <h3>📧 Email Reminders Setup — EmailJS</h3>
+        <div class="help-block">
+          <p style="margin-bottom:.7rem;">EmailJS lets TaskMaster send reminder emails and weekly backups for free (200 emails/month). Follow these steps:</p>
+          <div class="help-step"><span class="help-step-n">1</span><span>Go to <a href="https://emailjs.com" target="_blank" style="color:var(--blue);font-weight:600;">emailjs.com</a> and create a free account.</span></div>
+          <div class="help-step"><span class="help-step-n">2</span><span>Add an <strong>Email Service</strong> — connect your Gmail account. Copy the <strong>Service ID</strong>.</span></div>
+          <div class="help-step"><span class="help-step-n">3</span><span>Create an <strong>Email Template</strong>. Add three variables to the template body: <code>{{to_email}}</code> <code>{{subject}}</code> <code>{{message}}</code>. Copy the <strong>Template ID</strong>.</span></div>
+          <div class="help-step"><span class="help-step-n">4</span><span>Go to <strong>Account → API Keys</strong> and copy your <strong>Public Key</strong>.</span></div>
+          <div class="help-step"><span class="help-step-n">5</span><span>Enter all four values below and tap <strong>Save &amp; Test</strong>.</span></div>
+        </div>
+        <div class="sr" style="margin-top:.75rem;"><span>Your Email</span><input type="email" id="sem" placeholder="where reminders are sent" /></div>
+        <div class="sr"><span>Public Key</span><input type="text" id="sek" placeholder="from Account → API Keys" /></div>
+        <div class="sr"><span>Service ID</span><input type="text" id="sev" placeholder="service_xxxxxxx" /></div>
+        <div class="sr"><span>Template ID</span><input type="text" id="set2" placeholder="template_xxxxxxx" /></div>
+        <div style="display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap;">
+          <button class="btn btn-navy btn-sm" onclick="saveSettings()">💾 Save Settings</button>
+          <button class="btn btn-green btn-sm" onclick="testEmail()">📧 Send Test Email</button>
+        </div>
+      </div>
+
+      <!-- Claude Voice Import -->
+      <div class="ss">
+        <h3>🎤 Claude Voice Import</h3>
+        <div class="help-block">
+          <p>Add tasks hands-free using Claude on your phone. Copy the prompt below and paste it into any Claude conversation once. Then just say your task out loud and Claude will give you a link that opens TaskMaster pre-filled.</p>
+          <p style="margin-top:.5rem;font-size:.78rem;color:var(--text3);">Example: <em>"Add a task: Pay rates by Friday, high priority, Finance, remind 1 day before"</em></p>
+        </div>
+        <div class="cp-prompt-box" style="margin-top:.65rem;">
+          <div class="lbl">Copy this prompt into Claude:</div>
+          <div class="prompt-txt" id="claude-context-prompt"></div>
+          <button onclick="copyPrompt()" id="copy-prompt-btn" class="btn btn-navy btn-sm" style="margin-top:.55rem;">📋 Copy Prompt</button>
+        </div>
+      </div>
+
+      <!-- Natural Language Input -->
+      <div class="ss">
         <h3>✨ Natural Language Task Input</h3>
-        <p>Type a task in plain English — Claude will parse it and pre-fill the form.</p>
-        <textarea id="nl-input" placeholder='e.g. "Pay electricity bill by Friday high priority Finance remind 1 day before"'></textarea>
-        <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" id="nl-btn" onclick="nlImport()">✨ Parse Task</button>
+        <div class="help-block">
+          <p>Type a task in plain English and Claude will automatically fill in the due date, priority, category and reminder. No dropdowns needed.</p>
+          <p style="margin-top:.4rem;font-size:.78rem;color:var(--text3);">Example: <em>"Call dentist next Tuesday morning Work remind 1 day before"</em></p>
+        </div>
+        <textarea id="nl-input" placeholder='Type your task in plain English...' style="width:100%;margin-top:.65rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.86rem;font-family:DM Sans,sans-serif;color:var(--text);min-height:70px;resize:vertical;"></textarea>
+        <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" id="nl-btn" onclick="nlImport()">✨ Parse &amp; Add Task</button>
       </div>
-      <div class="cp">
+
+      <!-- JSON Import -->
+      <div class="ss">
         <h3>📋 Paste JSON from Claude</h3>
-        <p>Alternatively paste JSON from Claude directly below.</p>
-        <textarea id="cjson" placeholder='{"name":"Task","category":"Personal","priority":"Medium","due":"2025-05-01","reminder":"1day"}'></textarea>
+        <div class="help-block">
+          <p>If Claude gives you a JSON task object, paste it here to import it directly.</p>
+        </div>
+        <textarea id="cjson" placeholder='{"name":"Task","category":"Personal","priority":"Medium","due":"2025-05-01","reminder":"1day"}' style="width:100%;margin-top:.65rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-family:'DM Mono',monospace;color:var(--text);min-height:60px;resize:vertical;"></textarea>
         <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" onclick="claudeImport()">Import Task</button>
       </div>
-    </div>
-    <div class="ss"><h3>Data</h3>
-      <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="exportData()">Export JSON</button>
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('ifile').click()">Import JSON</button>
-        <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)" />
-        <button class="btn btn-red btn-sm" onclick="clearAll()">Clear All</button>
+
+      <!-- Tips -->
+      <div class="ss">
+        <h3>💡 Tips &amp; Shortcuts</h3>
+        <div class="help-block">
+          <div class="help-tip">📤 <strong>Share any task</strong> — tap the share icon on a task card to send via WhatsApp, SMS or email</div>
+          <div class="help-tip">📅 <strong>Calendar</strong> — tap any day to add a task with that date pre-filled</div>
+          <div class="help-tip">🖨️ <strong>Print</strong> — tap the printer icon on a task for a full job sheet, or the header print button for a summary list</div>
+          <div class="help-tip">⚠️ <strong>Overdue</strong> — tap the Overdue pill at the top to instantly filter to overdue tasks only</div>
+          <div class="help-tip">🔁 <strong>Recurring tasks</strong> — when you complete a recurring task, the next occurrence is created automatically</div>
+          <div class="help-tip">📧 <strong>Weekly backup</strong> — TaskMaster emails you a full backup every 7 days when you open the app (requires EmailJS setup)</div>
+        </div>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn btn-outline" onclick="cm('smod')">Close</button>
       </div>
     </div>
-    <div class="modal-btns">
-      <button class="btn btn-navy" onclick="saveSettings()">Save Settings</button>
-      <button class="btn btn-outline" onclick="cm('smod')">Close</button>
-    </div>
+
   </div>
 </div>
 
@@ -1315,9 +1397,16 @@ If a field is not mentioned use sensible defaults. Category defaults to Personal
 async function claudeImport(){const raw=document.getElementById('cjson').value.trim();if(!raw){toast('Paste JSON first.');return;}try{const d=JSON.parse(raw);const t={id:'task_'+Date.now(),name:d.name||'Unnamed',category:d.category||'Personal',priority:d.priority||'Medium',due:d.due||'',time:d.time||'',status:d.status||'Not Started',assignee:d.assignee||'',pct:parseInt(d.pct)||0,reminder:d.reminder||'',tags:typeof d.tags==='string'?d.tags.split(',').map(x=>x.trim()).filter(Boolean):(d.tags||[]),notes:d.notes||'',checklist:[],attachments:[],recur:!!d.recur,recurN:d.recurN||null,recurUnit:d.recurUnit||null,recurFrom:d.recurFrom||'due',recurEnd:d.recurEnd||'',created:new Date().toISOString(),updated:new Date().toISOString()};tasks.push(t);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();document.getElementById('cjson').value='';toast(`"${t.name}" imported ✓`);}catch(e){toast('Invalid JSON.');}}
 
 // ── Settings ──────────────────────────────────────────────────────────
+function switchSettTab(tab){
+  document.getElementById('spanel-settings').style.display=tab==='settings'?'':'none';
+  document.getElementById('spanel-help').style.display=tab==='help'?'':'none';
+  document.getElementById('stab-settings').className='sett-tab'+(tab==='settings'?' active':'');
+  document.getElementById('stab-help').className='sett-tab'+(tab==='help'?' active':'');
+}
+
 function openSettings(){document.getElementById('sem').value=cfg.email||'';document.getElementById('sek').value=cfg.ejsKey||'';document.getElementById('sev').value=cfg.ejsSvc||'';document.getElementById('set2').value=cfg.ejsTpl||'';if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;renderCatSettings();updateClaudePrompt();document.getElementById('smod').style.display='flex';}
 function saveCfgLocal(){cfg.email=document.getElementById('sem').value.trim();cfg.ejsKey=document.getElementById('sek').value.trim();cfg.ejsSvc=document.getElementById('sev').value.trim();cfg.ejsTpl=document.getElementById('set2').value.trim();}
-function saveSettings(){saveCfgLocal();localStorage.setItem('tm_cfg',JSON.stringify(cfg));saveSettingsRemote();cm('smod');toast('Settings saved ✓');}
+function saveSettings(){saveCfgLocal();localStorage.setItem('tm_cfg',JSON.stringify(cfg));saveSettingsRemote();toast('Settings saved ✓');}
 
 // ── Data ──────────────────────────────────────────────────────────────
 function exportData(){const b=new Blob([JSON.stringify({tasks,cats},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='taskmaster_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
