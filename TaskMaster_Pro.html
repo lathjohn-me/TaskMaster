@@ -470,7 +470,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
     <div class="f2">
       <div class="fr"><label>Status</label><select id="fst"><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option></select></div>
-      <div class="fr"><label>Assigned To</label><input type="text" id="fas" placeholder="Name or team" /></div>
+      <div class="fr"><label>Assigned To</label><select id="fas"><option value="">Unassigned</option></select></div>
     </div>
     <div class="f2">
       <div class="fr"><label>% Complete</label><input type="number" id="fpc" min="0" max="100" value="0" /></div>
@@ -519,6 +519,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Last Updated</div><div style="font-size:.78rem;color:var(--text2);font-family:'DM Mono',monospace;" id="audit-updated">—</div></div>
         <div id="audit-completed-wrap" style="display:none;grid-column:1/-1;"><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Completed</div><div style="font-size:.78rem;color:#3a6010;font-family:'DM Mono',monospace;" id="audit-completed">—</div></div>
       </div>
+      <!-- Activity log -->
+      <div id="activity-log" style="margin-top:.6rem;border-top:1px solid var(--border);padding-top:.5rem;display:none;">
+        <div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:.35rem;">Activity</div>
+        <div id="activity-log-items"></div>
+      </div>
     </div>
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="cmTask()">Cancel</button>
@@ -551,6 +556,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
       <div class="ss"><h3>Account</h3>
         <div class="sr"><span id="acct-email" style="font-weight:600;color:var(--text);"></span><button class="btn btn-outline btn-sm" onclick="doSignOut()">Sign Out</button></div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:.3rem;" id="role-label"></div>
+      </div>
+      <div class="ss" id="team-section">
+        <h3>👥 Team</h3>
+        <div id="team-member-list" style="margin-bottom:.75rem;"></div>
+        <div class="add-cat-row">
+          <input type="email" id="invite-email" placeholder="teammate@email.com" style="flex:1;padding:.4rem .65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.83rem;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);" />
+          <button class="btn btn-blue btn-sm" onclick="doInvite()">+ Invite</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--text3);margin-top:.5rem;">Invited teammates will receive an email with a link to create their account. They'll only see tasks assigned to them.</p>
       </div>
       <div class="ss"><h3>Data</h3>
         <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
@@ -668,6 +683,8 @@ let tasks=[],cfg={},cats=[],tab='All',eid=null;
 let sb=null,currentUser=null,realtimeSub=null;
 let pendingFiles=[],editingAttachments=[],clItems=[];
 let activePillFilter=null,calDate=new Date(),calView='week';
+// Multi-user workspace state
+let workspace=null,workspaceMembers=[],isOwner=false,userRole='owner';
 const DEFAULT_CATS=[{name:'Personal',color:'#4F86C6'},{name:'Work',color:'#C8860A'},{name:'Finance',color:'#5BAD6F'},{name:'Projects',color:'#C45FAA'},{name:'Audit',color:'#E67E22'}];
 
 // ── Boot ──────────────────────────────────────────────────────────────
@@ -757,31 +774,29 @@ function showView(v){
 // ── Real-time ─────────────────────────────────────────────────────────
 function setupRealtime(){
   if(realtimeSub){sb.removeChannel(realtimeSub);}
+  const handleTaskChange=async(payload)=>{
+    if(payload.eventType==='INSERT'||payload.eventType==='UPDATE'){
+      const t={...payload.new.data,id:payload.new.id,updated:payload.new.updated_at};
+      // For members — only show if assigned to them or their own task
+      if(!isOwner&&t.user_id!==currentUser.id&&t.assignee_id!==currentUser.id)return;
+      const idx=tasks.findIndex(x=>x.id===t.id);
+      if(idx>-1)tasks[idx]=t;else tasks.push(t);
+    }else if(payload.eventType==='DELETE'){tasks=tasks.filter(x=>x.id!==payload.old.id);}
+    localStorage.setItem('tm_tasks',JSON.stringify(tasks));dash();render();
+    setDS('on','Live');
+  };
   realtimeSub=sb.channel('tasks-rt')
-    .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.${currentUser.id}`},
-      async(payload)=>{
-        if(payload.eventType==='INSERT'||payload.eventType==='UPDATE'){
-          const t={...payload.new.data,id:payload.new.id,updated:payload.new.updated_at};
-          const idx=tasks.findIndex(x=>x.id===t.id);
-          if(idx>-1)tasks[idx]=t;else tasks.push(t);
-        }else if(payload.eventType==='DELETE'){tasks=tasks.filter(x=>x.id!==payload.old.id);}
-        localStorage.setItem('tm_tasks',JSON.stringify(tasks));dash();render();
-        setDS('on','Live');
-      })
+    .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.${currentUser.id}`},handleTaskChange)
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){setDS('on','Live');}
       else if(status==='CLOSED'||status==='CHANNEL_ERROR'){
         setDS('syncing','Reconnecting...');
-        // Auto-reconnect after 3 seconds
         setTimeout(()=>setupRealtime(),3000);
       }
     });
-
-  // Reload from Supabase when tab becomes visible again (e.g. switching from mobile to desktop)
+  // Reload from Supabase when tab becomes visible again
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&currentUser){
-      loadFromSupabase();
-    }
+    if(document.visibilityState==='visible'&&currentUser)loadFromSupabase();
   },{once:false});
 }
 
@@ -790,21 +805,24 @@ async function loadFromSupabase(){
   if(!sb||!currentUser)return;
   setDS('syncing','Loading...');
   try{
-    const {data:rows,error}=await sb.from('tasks').select('id,data,updated_at').eq('user_id',currentUser.id);
+    // Load workspace and determine role
+    await loadWorkspace();
+
+    // Load tasks — owner sees all, members see only assigned tasks
+    let taskQuery=sb.from('tasks').select('id,data,updated_at');
+    if(isOwner){
+      taskQuery=taskQuery.eq('user_id',currentUser.id);
+    } else {
+      // Member — load own tasks + tasks assigned to me
+      taskQuery=taskQuery.or(`user_id.eq.${currentUser.id},data->assignee_id.eq."${currentUser.id}"`);
+    }
+    const {data:rows,error}=await taskQuery;
     if(error)throw error;
-    // Only update tasks if Supabase returned a valid response
-    // Never overwrite with empty array — if rows is empty array that's valid,
-    // but if it's null/undefined something went wrong so keep local data
     if(rows!==null&&rows!==undefined){
       const remoteTasks=rows.map(r=>({...r.data,id:r.id,updated:r.updated_at}));
-      // Safety check: if remote has fewer tasks than local, merge rather than replace
-      // This prevents a slow/partial load from wiping locally known tasks
       if(remoteTasks.length===0&&tasks.length>0){
-        // Remote is empty but we have local tasks — could be a load error
-        // Keep local tasks and warn rather than wiping
         toast('Warning: Supabase returned no tasks — keeping local data. Check connection.');
-        setDS('','Check connection');
-        return;
+        setDS('','Check connection');return;
       }
       tasks=remoteTasks;
       localStorage.setItem('tm_tasks',JSON.stringify(tasks));
@@ -815,10 +833,94 @@ async function loadFromSupabase(){
     if(settRow&&settRow.data){cfg={...cfg,...settRow.data};localStorage.setItem('tm_cfg',JSON.stringify(cfg));}
     setDS('on','Synced');
   }catch(e){
-    // On any error keep showing local data — never wipe
     setDS('','Offline');
     toast('Could not reach server — showing local data. Changes will sync when reconnected.');
   }
+}
+
+async function loadWorkspace(){
+  if(!sb||!currentUser)return;
+  try{
+    // Check if user owns a workspace
+    const {data:ownedWs}=await sb.from('workspaces').select('*').eq('owner_id',currentUser.id).single();
+    if(ownedWs){
+      workspace=ownedWs;isOwner=true;userRole='owner';
+      // Load members
+      const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
+      workspaceMembers=members||[];
+      return;
+    }
+    // Check if user is a member of someone else's workspace
+    const {data:membership}=await sb.from('workspace_members').select('*,workspaces(*)').eq('invited_email',currentUser.email).single();
+    if(membership&&membership.user_id===currentUser.id){
+      workspace=membership.workspaces;isOwner=false;userRole='member';
+      workspaceMembers=[];
+    } else if(membership&&!membership.user_id){
+      // First login — link this user to their pending invite
+      await sb.from('workspace_members').update({user_id:currentUser.id,joined_at:new Date().toISOString()}).eq('invited_email',currentUser.email);
+      workspace=membership.workspaces;isOwner=false;userRole='member';
+    }
+  }catch(e){
+    // No workspace yet — owner will create one when they invite someone
+    isOwner=true;userRole='owner';
+  }
+}
+
+async function createWorkspace(){
+  if(!sb||!currentUser||workspace)return;
+  const {data,error}=await sb.from('workspaces').insert({name:'My Workspace',owner_id:currentUser.id}).select().single();
+  if(!error&&data){workspace=data;workspaceMembers=[];}
+  return data;
+}
+
+async function inviteMember(email){
+  if(!sb||!currentUser)return;
+  if(!workspace)await createWorkspace();
+  if(!workspace)return;
+  // Add pending invite
+  const {error}=await sb.from('workspace_members').upsert({workspace_id:workspace.id,invited_email:email.toLowerCase(),role:'member'},{onConflict:'workspace_id,invited_email'});
+  if(error){toast('Invite failed: '+error.message);return;}
+  workspaceMembers=[...workspaceMembers.filter(m=>m.invited_email!==email.toLowerCase()),{workspace_id:workspace.id,invited_email:email.toLowerCase(),role:'member',user_id:null}];
+  // Send invite email via EmailJS
+  if(cfg.email){
+    const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+    s.onload=()=>{
+      emailjs.init(EJS_KEY);
+      emailjs.send(EJS_SVC,EJS_TPL,{
+        to_email:email,
+        subject:'You\'ve been invited to TaskMaster',
+        message:`Hi,\n\nYou've been invited to join a TaskMaster workspace.\n\nClick this link to create your account and get started:\n${APP_URL}\n\nSign up using this email address (${email}) and you'll be connected automatically.\n\n— TaskMaster`
+      }).then(()=>toast(`Invite sent to ${email} ✓`)).catch(()=>toast(`Invite saved — email notification failed.`));
+    };
+    document.head.appendChild(s);
+  } else {
+    toast(`${email} added — they can sign up at the app URL`);
+  }
+}
+
+async function removeMember(email){
+  if(!sb||!workspace)return;
+  await sb.from('workspace_members').delete().eq('workspace_id',workspace.id).eq('invited_email',email);
+  workspaceMembers=workspaceMembers.filter(m=>m.invited_email!==email);
+  toast(`${email} removed from workspace`);
+  renderTeamSettings();
+}
+
+// Log activity on a task
+async function logActivity(taskId,action,detail=''){
+  if(!sb||!currentUser)return;
+  try{
+    await sb.from('activity_log').insert({task_id:taskId,user_id:currentUser.id,user_email:currentUser.email,action,detail});
+  }catch(e){}
+}
+
+// Load activity log for a task
+async function loadActivityLog(taskId){
+  if(!sb)return[];
+  try{
+    const {data}=await sb.from('activity_log').select('*').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20);
+    return data||[];
+  }catch(e){return[];}
 }
 
 async function upsertTask(t){
@@ -885,11 +987,54 @@ function getCat(name){return cats.find(c=>c.name===name)||{color:'#888',name};}
 function buildTabs(){
   const c=document.getElementById('tabs');if(!c)return;c.innerHTML='';
   const all=document.createElement('button');all.className='tab'+(tab==='All'?' active':'');all.dataset.cat='All';all.onclick=function(){selTab(this);};all.textContent='All';c.appendChild(all);
+  // Add "Assigned to me" tab for members or if workspace exists
+  if(!isOwner||workspaceMembers.length>0){
+    const atm=document.createElement('button');atm.className='tab'+(tab==='AssignedToMe'?' active':'');atm.dataset.cat='AssignedToMe';atm.onclick=function(){selTab(this);};atm.textContent='👤 Assigned to Me';
+    if(tab==='AssignedToMe'){atm.style.background='#3344AA';atm.style.color='#fff';}
+    c.appendChild(atm);
+  }
   cats.forEach(cat=>{const btn=document.createElement('button');btn.className='tab'+(tab===cat.name?' active':'');btn.dataset.cat=cat.name;btn.onclick=function(){selTab(this);};btn.textContent=cat.name;if(tab===cat.name){btn.style.background=cat.color;btn.style.color='#fff';}c.appendChild(btn);});
   const hist=document.createElement('button');hist.className='tab history-tab'+(tab==='History'?' active':'');hist.dataset.cat='History';hist.onclick=function(){selTab(this);};hist.textContent='🕐 History';c.appendChild(hist);
   populateCatSelect();
 }
 function populateCatSelect(){const s=document.getElementById('fc');if(!s)return;const cur=s.value;s.innerHTML=cats.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');if(cur&&cats.find(c=>c.name===cur))s.value=cur;}
+
+function populateAssigneeSelect(currentAssigneeId){
+  const s=document.getElementById('fas');if(!s)return;
+  // Build options: self + all workspace members
+  const options=[{id:'',label:'Unassigned'},{id:currentUser.id,label:'Me ('+currentUser.email.split('@')[0]+')'}];
+  workspaceMembers.filter(m=>m.user_id&&m.user_id!==currentUser.id).forEach(m=>{
+    options.push({id:m.user_id,label:m.invited_email.split('@')[0]+' ('+m.invited_email+')'});
+  });
+  // Also add pending invites (no user_id yet) as display only
+  workspaceMembers.filter(m=>!m.user_id).forEach(m=>{
+    options.push({id:'pending_'+m.invited_email,label:m.invited_email+' (invited)'});
+  });
+  s.innerHTML=options.map(o=>`<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('');
+  if(currentAssigneeId)s.value=currentAssigneeId;
+}
+
+function enforcePermissions(t){
+  // If user is a member (not owner) and this is someone else's task assigned to them
+  // they can only edit status, checklist and notes
+  if(isOwner)return; // Owner can edit everything
+  if(!t||t.user_id===currentUser.id)return; // Own task — can edit everything
+  // Assigned task — restrict fields
+  const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
+  restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;el.style.opacity='.5';}});
+  document.getElementById('mtitle').textContent='View Task (assigned to you)';
+  // Show note
+  const note=document.createElement('div');
+  note.style.cssText='background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:#8a5500;margin-bottom:.75rem;';
+  note.textContent='You can update the status, checklist items and notes on this task.';
+  document.getElementById('fn').closest('.fr').before(note);
+}
+
+function clearPermissionRestrictions(){
+  const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
+  restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=false;el.style.opacity='1';}});
+  document.querySelectorAll('.permission-note').forEach(n=>n.remove());
+}
 
 function renderCatSettings(){
   document.getElementById('cat-list').innerHTML=cats.map((c,i)=>`
@@ -947,18 +1092,56 @@ function pillFilter(type){
 function clearPillFilter(){activePill=null;document.querySelectorAll('.dash-pill').forEach(p=>p.classList.remove('active-filter'));document.getElementById('active-filter-bar').style.display='none';render();}
 
 // ── Task CRUD ─────────────────────────────────────────────────────────
-function openAdd(){eid=null;pendingFiles=[];editingAttachments=[];clItems=[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';renderClEditor();document.getElementById('tmod').style.display='flex';}
+function openAdd(){eid=null;pendingFiles=[];editingAttachments=[];clItems=[];document.getElementById('mtitle').textContent='Add New Task';clrForm();populateAssigneeSelect(currentUser.id);document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';clearPermissionRestrictions();renderClEditor();document.getElementById('tmod').style.display='flex';}
 
 function openAddPrefill(t){eid=null;pendingFiles=[];editingAttachments=[];clItems=t.checklist||[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fn').value=t.name||'';if(t.category&&cats.find(c=>c.name===t.category))document.getElementById('fc').value=t.category;if(t.priority)document.getElementById('fpr').value=t.priority;if(t.due)document.getElementById('fd').value=t.due;if(t.time)document.getElementById('ft').value=t.time;if(t.reminder)document.getElementById('frm').value=t.reminder;if(t.tags&&t.tags.length)document.getElementById('ftg').value=t.tags.join(', ');if(t.notes)document.getElementById('fno').value=t.notes;document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';renderClEditor();document.getElementById('tmod').style.display='flex';toast('Pre-filled from Claude — tap Save ✓');}
 
-function openEdit(id){eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;pendingFiles=[];editingAttachments=JSON.parse(JSON.stringify(t.attachments||[]));clItems=JSON.parse(JSON.stringify(t.checklist||[]));document.getElementById('mtitle').textContent='Edit Task';document.getElementById('fn').value=t.name;document.getElementById('fpr').value=t.priority;document.getElementById('fd').value=t.due||'';document.getElementById('ft').value=t.time||'';document.getElementById('fst').value=t.status;document.getElementById('fas').value=t.assignee||'';document.getElementById('fpc').value=t.pct||0;document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');document.getElementById('fno').value=t.notes||'';populateCatSelect();document.getElementById('fc').value=t.category;document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';document.getElementById('fre').value=t.recurEnd||'';togRec();renderAttPreview(editingAttachments);renderClEditor();
+async function openEdit(id){
+  eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;
+  pendingFiles=[];editingAttachments=JSON.parse(JSON.stringify(t.attachments||[]));clItems=JSON.parse(JSON.stringify(t.checklist||[]));
+  document.getElementById('mtitle').textContent='Edit Task';
+  document.getElementById('fn').value=t.name;document.getElementById('fpr').value=t.priority;
+  document.getElementById('fd').value=t.due||'';document.getElementById('ft').value=t.time||'';
+  document.getElementById('fst').value=t.status;document.getElementById('fpc').value=t.pct||0;
+  document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');
+  document.getElementById('fno').value=t.notes||'';
+  populateCatSelect();document.getElementById('fc').value=t.category;
+  populateAssigneeSelect(t.assignee_id||'');
+  document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;
+  document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';
+  document.getElementById('fre').value=t.recurEnd||'';
+  togRec();renderAttPreview(editingAttachments);renderClEditor();
+  clearPermissionRestrictions();
+  enforcePermissions(t);
   // Audit dates
   const ad=document.getElementById('audit-dates');ad.style.display='';
   document.getElementById('audit-created').textContent=t.created?fmtDT(t.created):'—';
   document.getElementById('audit-updated').textContent=t.updated?fmtDT(t.updated):'—';
   const cw=document.getElementById('audit-completed-wrap');
   if(t.status==='Complete'&&t.updated){cw.style.display='';document.getElementById('audit-completed').textContent=fmtDT(t.updated);}else{cw.style.display='none';}
+  // Load activity log
+  renderActivityLog([]);
+  loadActivityLog(id).then(log=>renderActivityLog(log));
   document.getElementById('tmod').style.display='flex';
+}
+
+function renderActivityLog(log){
+  const container=document.getElementById('activity-log');
+  const items=document.getElementById('activity-log-items');
+  if(!container||!items)return;
+  if(!log||!log.length){container.style.display='none';return;}
+  container.style.display='';
+  const actionLabels={created:'Created',updated:'Updated',status_changed:'Status changed',reassigned:'Reassigned',checklist:'Checklist',deleted:'Deleted'};
+  items.innerHTML=log.map(l=>{
+    const who=l.user_email?l.user_email.split('@')[0]:'Unknown';
+    const when=fmtDT(l.created_at);
+    const what=actionLabels[l.action]||l.action;
+    return`<div style="display:flex;gap:.5rem;padding:.22rem 0;border-bottom:1px solid var(--border);font-size:.75rem;flex-wrap:wrap;">
+      <span style="color:var(--text3);white-space:nowrap;">${when}</span>
+      <span style="color:var(--navy);font-weight:600;">${esc(who)}</span>
+      <span style="color:var(--text2);">${what}${l.detail?' — '+esc(l.detail):''}</span>
+    </div>`;
+  }).join('');
 }
 
 function clrForm(){['fn','fas','ftg','fno','ft'].forEach(id=>document.getElementById(id).value='');populateCatSelect();const ct=tab!=='All'&&tab!=='History'&&cats.find(c=>c.name===tab)?tab:(cats[0]&&cats[0].name)||'Personal';document.getElementById('fc').value=ct;document.getElementById('fpr').value='Medium';document.getElementById('fst').value='Not Started';document.getElementById('fpc').value=0;document.getElementById('frm').value='';document.getElementById('fron').checked=false;document.getElementById('frn').value=1;document.getElementById('fru').value='days';document.getElementById('frf').value='due';document.getElementById('fre').value='';togRec();}
@@ -967,20 +1150,46 @@ async function saveTask(){
   const nm=document.getElementById('fn').value.trim();if(!nm){toast('Please enter a task name.');return;}
   const ron=document.getElementById('fron').checked;
   const taskId=eid||'task_'+Date.now();
+  const assigneeId=document.getElementById('fas').value;
+  const assigneeMember=workspaceMembers.find(m=>m.user_id===assigneeId);
+  const assigneeName=assigneeId===currentUser.id?currentUser.email.split('@')[0]:(assigneeMember?assigneeMember.invited_email.split('@')[0]:'');
   let attachments=editingAttachments.filter(a=>!a._deleted);
   const toUpload=pendingFiles.filter(f=>f!==null);
   if(toUpload.length){toast('Uploading files...');for(const f of toUpload){try{attachments.push(await uploadFile(f,taskId));}catch(e){toast(`Failed: ${f.name}`);}}for(const a of editingAttachments.filter(a=>a._deleted)){await deleteAttachment(a.path);}}
-  const t={id:taskId,name:nm,category:document.getElementById('fc').value,priority:document.getElementById('fpr').value,due:document.getElementById('fd').value,time:document.getElementById('ft').value,status:document.getElementById('fst').value,assignee:document.getElementById('fas').value.trim(),pct:parseInt(document.getElementById('fpc').value)||0,reminder:document.getElementById('frm').value,tags:document.getElementById('ftg').value.split(',').map(x=>x.trim()).filter(Boolean),notes:document.getElementById('fno').value.trim(),checklist:clItems,attachments,recur:ron,recurN:ron?parseInt(document.getElementById('frn').value)||1:null,recurUnit:ron?document.getElementById('fru').value:null,recurFrom:ron?document.getElementById('frf').value:null,recurEnd:ron?document.getElementById('fre').value:null,recurParentId:eid?(tasks.find(x=>x.id===eid)||{}).recurParentId:null,created:eid?(tasks.find(x=>x.id===eid)||{}).created||new Date().toISOString():new Date().toISOString(),updated:new Date().toISOString()};
+  const t={id:taskId,name:nm,category:document.getElementById('fc').value,priority:document.getElementById('fpr').value,
+    due:document.getElementById('fd').value,time:document.getElementById('ft').value,
+    status:document.getElementById('fst').value,
+    assignee:assigneeName,assignee_id:assigneeId,
+    pct:parseInt(document.getElementById('fpc').value)||0,reminder:document.getElementById('frm').value,
+    tags:document.getElementById('ftg').value.split(',').map(x=>x.trim()).filter(Boolean),
+    notes:document.getElementById('fno').value.trim(),checklist:clItems,attachments,recur:ron,
+    recurN:ron?parseInt(document.getElementById('frn').value)||1:null,
+    recurUnit:ron?document.getElementById('fru').value:null,
+    recurFrom:ron?document.getElementById('frf').value:null,
+    recurEnd:ron?document.getElementById('fre').value:null,
+    recurParentId:eid?(tasks.find(x=>x.id===eid)||{}).recurParentId:null,
+    user_id:eid?(tasks.find(x=>x.id===eid)||{}).user_id||currentUser.id:currentUser.id,
+    created:eid?(tasks.find(x=>x.id===eid)||{}).created||new Date().toISOString():new Date().toISOString(),
+    updated:new Date().toISOString()};
   if(t.status==='Complete')t.pct=100;
+  // Log activity
+  const prevTask=tasks.find(x=>x.id===eid);
+  if(eid&&prevTask){
+    if(prevTask.status!==t.status)await logActivity(taskId,'status_changed',`${prevTask.status} → ${t.status}`);
+    else if(prevTask.assignee_id!==t.assignee_id)await logActivity(taskId,'reassigned',`Assigned to ${t.assignee||'unassigned'}`);
+    else await logActivity(taskId,'updated','Task details updated');
+  } else {
+    await logActivity(taskId,'created',`Created${t.assignee?' and assigned to '+t.assignee:''}`);
+  }
   if(eid){const i=tasks.findIndex(x=>x.id===eid);if(i>-1)tasks[i]=t;}else tasks.push(t);
   localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);cm('tmod');dash();render();toast(eid?'Updated ✓':'Task added ✓');
 }
 
 async function delTask(id){if(!confirm('Delete this task?'))return;const t=tasks.find(x=>x.id===id);if(t&&t.attachments){for(const a of t.attachments){await deleteAttachment(a.path);}}tasks=tasks.filter(t=>t.id!==id);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await deleteTaskRemote(id);dash();render();toast('Deleted.');}
 
-async function togDone(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.status=t.status==='Complete'?'Not Started':'Complete';t.pct=t.status==='Complete'?100:0;t.updated=new Date().toISOString();localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);if(t.status==='Complete'&&t.recur){const nx=nextOcc(t);if(nx){tasks.push(nx);await upsertTask(nx);toast(`Next due ${fmt(nx.due)} ✓`);}else toast(`Complete — no more recurrences.`);}dash();render();}
+async function togDone(id){const t=tasks.find(x=>x.id===id);if(!t)return;const prev=t.status;t.status=t.status==='Complete'?'Not Started':'Complete';t.pct=t.status==='Complete'?100:0;t.updated=new Date().toISOString();localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);await logActivity(id,'status_changed',`${prev} → ${t.status}`);if(t.status==='Complete'&&t.recur){const nx=nextOcc(t);if(nx){tasks.push(nx);await upsertTask(nx);toast(`Next due ${fmt(nx.due)} ✓`);}else toast(`Complete — no more recurrences.`);}dash();render();}
 
-async function togCheckItem(taskId,idx){const t=tasks.find(x=>x.id===taskId);if(!t||!t.checklist)return;t.checklist[idx].done=!t.checklist[idx].done;t.updated=new Date().toISOString();const total=t.checklist.length,done=t.checklist.filter(x=>x.done).length;if(total>0)t.pct=Math.round(done/total*100);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();}
+async function togCheckItem(taskId,idx){const t=tasks.find(x=>x.id===taskId);if(!t||!t.checklist)return;t.checklist[idx].done=!t.checklist[idx].done;t.updated=new Date().toISOString();const total=t.checklist.length,done=t.checklist.filter(x=>x.done).length;if(total>0)t.pct=Math.round(done/total*100);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);await logActivity(taskId,'checklist',`${t.checklist[idx].done?'Completed':'Uncompleted'}: ${t.checklist[idx].text}`);dash();render();}
 
 // ── Render ────────────────────────────────────────────────────────────
 function render(){
@@ -1016,7 +1225,8 @@ function render(){
       if(fs==='__recurring__'&&!t.recur)return false;
       if(fs&&!fs.startsWith('__')&&t.status!==fs)return false;
     }
-    if(tab!=='All'&&t.category!==tab)return false;
+    if(tab==='AssignedToMe'&&t.assignee_id!==currentUser.id)return false;
+    if(tab!=='All'&&tab!=='AssignedToMe'&&t.category!==tab)return false;
     if(fp&&t.priority!==fp)return false;
     if(srch&&!t.name.toLowerCase().includes(srch)&&!(t.notes||'').toLowerCase().includes(srch)&&!(t.tags||[]).join(' ').toLowerCase().includes(srch))return false;
     return true;
@@ -1047,7 +1257,7 @@ function card(t,od,sn){
       <span class="b" style="background:${hexRgba(c.color,.12)};color:${c.color};">${esc(t.category)}</span>
       <span class="b ${t.priority==='High'?'b-ph':t.priority==='Medium'?'b-pm':'b-pl'}">${t.priority}</span>
       ${dl?`<span class="b b-due ${dc}">${od?'⚠ ':''}${dl}${tl}</span>`:''}
-      ${t.assignee?`<span class="b b-as">👤 ${esc(t.assignee)}</span>`:''}
+      ${t.assignee?`<span class="b b-as">${t.assignee_id===currentUser.id?'👤 Assigned to me':'👤 '+esc(t.assignee)}</span>`:''}
       ${t.reminder&&rm[t.reminder]?`<span class="b b-rm">${rm[t.reminder]}</span>`:''}
       ${t.recur?`<span class="b b-rc">🔁 ${rlabel(t)}</span>`:''}
       ${cl.length?`<span class="b b-hi">☑ ${clDone}/${cl.length}</span>`:''}
@@ -1399,7 +1609,43 @@ function switchSettTab(tab){
   document.getElementById('stab-help').className='sett-tab'+(tab==='help'?' active':'');
 }
 
-function openSettings(){document.getElementById('sem').value=cfg.email||'';if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;renderCatSettings();updateClaudePrompt();document.getElementById('smod').style.display='flex';}
+function renderTeamSettings(){
+  const list=document.getElementById('team-member-list');
+  if(!list)return;
+  // Show team section only to owner
+  const teamSection=document.getElementById('team-section');
+  if(teamSection)teamSection.style.display=isOwner?'':'none';
+  // Show role label
+  const roleLabel=document.getElementById('role-label');
+  if(roleLabel)roleLabel.textContent=isOwner?'You are the workspace owner':'You are a workspace member';
+  if(!workspaceMembers.length){list.innerHTML='<div style="font-size:.82rem;color:var(--text3);">No team members yet. Invite someone below.</div>';return;}
+  list.innerHTML=workspaceMembers.map(m=>`
+    <div class="cat-row">
+      <div style="flex:1;">
+        <div style="font-size:.84rem;font-weight:600;color:var(--text);">${esc(m.invited_email)}</div>
+        <div style="font-size:.72rem;color:var(--text3);">${m.user_id?'✅ Active member':'⏳ Invite pending'}</div>
+      </div>
+      <button class="cat-del" onclick="removeMember('${esc(m.invited_email)}')">✕</button>
+    </div>`).join('');
+}
+
+async function doInvite(){
+  const email=document.getElementById('invite-email').value.trim();
+  if(!email||!email.includes('@')){toast('Please enter a valid email.');return;}
+  if(email.toLowerCase()===currentUser.email.toLowerCase()){toast('That\'s your own email!');return;}
+  await inviteMember(email);
+  document.getElementById('invite-email').value='';
+  renderTeamSettings();
+}
+
+function openSettings(){
+  document.getElementById('sem').value=cfg.email||'';
+  if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;
+  renderCatSettings();
+  renderTeamSettings();
+  updateClaudePrompt();
+  document.getElementById('smod').style.display='flex';
+}
 function saveCfgLocal(){cfg.email=document.getElementById('sem').value.trim();}
 function saveSettings(){saveCfgLocal();localStorage.setItem('tm_cfg',JSON.stringify(cfg));saveSettingsRemote();toast('Settings saved ✓');}
 
