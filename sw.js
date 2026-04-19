@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taskmaster-v1';
+const CACHE_NAME = 'taskmaster-v2';
 const ASSETS = [
   '/TaskMaster/TaskMaster_Pro.html',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap',
