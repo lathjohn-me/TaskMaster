@@ -324,6 +324,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="logo-big">📋</div>
     <h2>TaskMaster Pro</h2>
     <p>Sign in to access your tasks across all devices.</p>
+      <div style="background:#EBF3FB;border:1px solid #B0D4F0;border-radius:8px;padding:.6rem .85rem;margin-bottom:.5rem;font-size:.8rem;color:#1a4a7a;line-height:1.55;"><strong>New user?</strong> Check your email for an invite link first. Click it to confirm your account, then sign in here.</div>
     <div class="auth-err" id="login-err"></div>
     <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="your@gmail.com" /></div>
     <div class="fr">
@@ -750,11 +751,23 @@ async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pass=document.getElementById('login-pass').value;
   const err=document.getElementById('login-err');
+  const btn=document.querySelector('#login-screen .auth-btn');
   err.style.display='none';err.className='auth-err error';
   if(!email||!pass){err.textContent='Please enter your email and password.';err.style.display='';return;}
+  btn.textContent='Signing in…';btn.disabled=true;
   setDS('syncing','Signing in...');
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){err.textContent=error.message;err.style.display='';setDS('','');return;}
+  btn.textContent='Sign In';btn.disabled=false;
+  if(error){
+    // Give a clearer message for unconfirmed email
+    if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('not confirmed')){
+      err.className='auth-err success';
+      err.innerHTML='📧 <strong>Please confirm your email first.</strong><br><br>Check your inbox (and spam folder) for a confirmation email from TaskMaster. Click the link in the email, then come back here to sign in.<br><br><small>Can\'t find it? Check your spam folder or contact your workspace admin to resend the invite.</small>';
+    } else {
+      err.textContent=error.message;
+    }
+    err.style.display='';setDS('','');return;
+  }
   currentUser=data.user;showMain();
 }
 
