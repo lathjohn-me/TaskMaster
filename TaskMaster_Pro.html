@@ -419,6 +419,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <select id="fs" onchange="render()">
           <option value="">All Statuses</option><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option>
           <option value="__overdue__">Overdue</option><option value="__soon__">Due Soon</option><option value="__recurring__">Recurring</option>
+          <option value="__unassigned__">Unassigned</option>
         </select>
         <select id="fo" onchange="render()"><option value="due">Due Date</option><option value="priority">Priority</option><option value="name">Name</option><option value="pct">% Complete</option></select>
         <label class="toggle-label"><input type="checkbox" id="shd" onchange="render()" /> Show completed</label>
@@ -696,6 +697,42 @@ async function init(){
   if(localTasks){try{tasks=JSON.parse(localTasks);}catch(e){tasks=[];}}
   sb=supabase.createClient(SB_URL,SB_KEY);
   handleUrlParams();
+
+  // Handle Supabase auth redirect (email confirmation, password reset)
+  // Supabase appends tokens as URL hash fragments: #access_token=xxx&type=signup
+  const hash=window.location.hash;
+  if(hash&&hash.includes('access_token')){
+    const params=new URLSearchParams(hash.replace('#',''));
+    const type=params.get('type');
+    // Let Supabase process the hash tokens
+    const {data:{session},error}=await sb.auth.getSession();
+    if(session){
+      currentUser=session.user;
+      // Clear the hash from URL
+      window.history.replaceState({},'',window.location.pathname);
+      if(type==='recovery'){
+        // Password reset — show a reset form
+        showScreen('login-screen');
+        const err=document.getElementById('login-err');
+        err.className='auth-err success';
+        err.textContent='✅ You can now sign in with your new password.';
+        err.style.display='';
+      } else {
+        // Email confirmation — go straight to app
+        showMain();
+      }
+      return;
+    }
+    if(error){
+      showScreen('login-screen');
+      const err=document.getElementById('login-err');
+      err.className='auth-err error';
+      err.textContent='Confirmation link expired. Please sign in or request a new link.';
+      err.style.display='';
+      return;
+    }
+  }
+
   const {data:{session}}=await sb.auth.getSession();
   if(session){currentUser=session.user;showMain();}
   else showScreen('login-screen');
@@ -726,13 +763,24 @@ async function doRegister(){
   const pass=document.getElementById('reg-pass').value;
   const pass2=document.getElementById('reg-pass2').value;
   const err=document.getElementById('reg-err');
+  const btn=document.querySelector('#register-screen .auth-btn');
   err.style.display='none';err.className='auth-err error';
   if(!email||!pass){err.textContent='Please fill in all fields.';err.style.display='';return;}
   if(pass!==pass2){err.textContent='Passwords do not match.';err.style.display='';return;}
   if(pass.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='';return;}
+  // Show loading state while Supabase processes and sends confirmation email
+  btn.textContent='Creating account…';btn.disabled=true;
+  err.className='auth-err success';
+  err.textContent='⏳ Setting up your account and sending a confirmation email — this may take a few seconds…';
+  err.style.display='';
   const {data,error}=await sb.auth.signUp({email,password:pass});
-  if(error){err.textContent=error.message;err.style.display='';return;}
-  if(data.user&&!data.session){err.className='auth-err success';err.textContent='Account created! Check your email to confirm, then sign in.';err.style.display='';return;}
+  btn.textContent='Create Account';btn.disabled=false;
+  if(error){err.className='auth-err error';err.textContent=error.message;err.style.display='';return;}
+  if(data.user&&!data.session){
+    err.className='auth-err success';
+    err.innerHTML='✅ <strong>Account created!</strong><br><br>A confirmation email has been sent to <strong>'+email+'</strong>.<br><br>Please check your inbox (and spam folder), click the confirmation link, then return here to sign in.';
+    err.style.display='';return;
+  }
   currentUser=data.user;showMain();
 }
 
@@ -757,7 +805,7 @@ async function showMain(){
   document.getElementById('hlabel').textContent=currentUser?currentUser.email.split('@')[0]:'';
   updateClaudePrompt();
   await loadFromSupabase();
-  buildTabs();dash();render();
+  buildTabs();dash();render();updateAssigneeFilterOptions();
   setupRealtime();checkReminders();checkWeeklyBackup();
   if(window._prefill){setTimeout(()=>{openAddPrefill(window._prefill);window._prefill=null;},400);}
 }
@@ -995,6 +1043,25 @@ function removeEditAtt(idx,btn){editingAttachments[idx]._deleted=true;btn.parent
 // ── Categories ────────────────────────────────────────────────────────
 function saveCats(){localStorage.setItem('tm_cats',JSON.stringify(cats));saveCatsRemote();buildTabs();updateClaudePrompt();}
 function getCat(name){return cats.find(c=>c.name===name)||{color:'#888',name};}
+
+function updateAssigneeFilterOptions(){
+  const sel=document.getElementById('fs');if(!sel)return;
+  // Remove any existing assignee options
+  Array.from(sel.options).filter(o=>o.value.startsWith('__assignee__')).forEach(o=>o.remove());
+  // Add one option per workspace member who has joined
+  const joined=workspaceMembers.filter(m=>m.user_id);
+  if(!joined.length)return;
+  const grp=document.createElement('optgroup');grp.label='Assigned to';
+  // Add self
+  const meSelf=document.createElement('option');meSelf.value='__assignee__'+currentUser.id;meSelf.textContent='→ Me';grp.appendChild(meSelf);
+  joined.filter(m=>m.user_id!==currentUser.id).forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value='__assignee__'+m.user_id;
+    opt.textContent='→ '+m.invited_email.split('@')[0];
+    grp.appendChild(opt);
+  });
+  sel.appendChild(grp);
+}
 
 function buildTabs(){
   const c=document.getElementById('tabs');if(!c)return;c.innerHTML='';
@@ -1238,6 +1305,8 @@ function render(){
       if(fs==='__overdue__'&&!(t.due&&new Date(t.due+'T00:00:00')<today&&t.status!=='Complete'))return false;
       if(fs==='__soon__'&&!(t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon&&t.status!=='Complete'))return false;
       if(fs==='__recurring__'&&!t.recur)return false;
+      if(fs==='__unassigned__'&&t.assignee_id)return false;
+      if(fs&&fs.startsWith('__assignee__')&&t.assignee_id!==fs.replace('__assignee__',''))return false;
       if(fs&&!fs.startsWith('__')&&t.status!==fs)return false;
     }
     if(tab==='AssignedToMe'&&t.assignee_id!==currentUser.id)return false;
@@ -1272,7 +1341,7 @@ function card(t,od,sn){
       <span class="b" style="background:${hexRgba(c.color,.12)};color:${c.color};">${esc(t.category)}</span>
       <span class="b ${t.priority==='High'?'b-ph':t.priority==='Medium'?'b-pm':'b-pl'}">${t.priority}</span>
       ${dl?`<span class="b b-due ${dc}">${od?'⚠ ':''}${dl}${tl}</span>`:''}
-      ${t.assignee?`<span class="b b-as">${t.assignee_id===currentUser.id?'👤 Assigned to me':'👤 '+esc(t.assignee)}</span>`:''}
+      ${t.assignee?`<span class="b b-as" style="cursor:pointer;" onclick="filterByAssignee('${t.assignee_id||''}')" title="Filter by assignee">${t.assignee_id===currentUser.id?'👤 Assigned to me':'👤 '+esc(t.assignee)}</span>`:''}
       ${t.reminder&&rm[t.reminder]?`<span class="b b-rm">${rm[t.reminder]}</span>`:''}
       ${t.recur?`<span class="b b-rc">🔁 ${rlabel(t)}</span>`:''}
       ${cl.length?`<span class="b b-hi">☑ ${clDone}/${cl.length}</span>`:''}
@@ -1295,6 +1364,16 @@ function card(t,od,sn){
     <button class="ib" onclick="delTask('${t.id}')" title="Delete">🗑️</button>
   </div>
 </div>`;
+}
+
+function filterByAssignee(assigneeId){
+  const sel=document.getElementById('fs');if(!sel)return;
+  if(!assigneeId){sel.value='__unassigned__';}
+  else{sel.value='__assignee__'+assigneeId;}
+  render();
+  // Scroll to task list
+  document.getElementById('tlist').scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Filtered by assignee — clear with the status filter');
 }
 
 function selTab(el){document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active');t.style.background='';t.style.color='';});el.classList.add('active');tab=el.dataset.cat;if(tab!=='All'&&tab!=='History'){const c=getCat(tab);el.style.background=c.color;el.style.color='#fff';}render();}
