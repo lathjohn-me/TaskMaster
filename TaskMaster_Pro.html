@@ -684,7 +684,7 @@ let sb=null,currentUser=null,realtimeSub=null;
 let pendingFiles=[],editingAttachments=[],clItems=[];
 let activePillFilter=null,calDate=new Date(),calView='week';
 // Multi-user workspace state
-let workspace=null,workspaceMembers=[],isOwner=false,userRole='owner';
+let workspace=null,workspaceMembers=[],isOwner=true,userRole='owner';
 const DEFAULT_CATS=[{name:'Personal',color:'#4F86C6'},{name:'Work',color:'#C8860A'},{name:'Finance',color:'#5BAD6F'},{name:'Projects',color:'#C45FAA'},{name:'Audit',color:'#E67E22'}];
 
 // ── Boot ──────────────────────────────────────────────────────────────
@@ -841,27 +841,39 @@ async function loadFromSupabase(){
 async function loadWorkspace(){
   if(!sb||!currentUser)return;
   try{
-    // Check if user owns a workspace
-    const {data:ownedWs}=await sb.from('workspaces').select('*').eq('owner_id',currentUser.id).single();
-    if(ownedWs){
-      workspace=ownedWs;isOwner=true;userRole='owner';
-      // Load members
-      const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
-      workspaceMembers=members||[];
-      return;
-    }
-    // Check if user is a member of someone else's workspace
-    const {data:membership}=await sb.from('workspace_members').select('*,workspaces(*)').eq('invited_email',currentUser.email).single();
-    if(membership&&membership.user_id===currentUser.id){
+    // First check if user is a member of someone else's workspace
+    // (check this first so invited users aren't treated as owners)
+    const {data:membership}=await sb.from('workspace_members')
+      .select('*,workspaces(*)')
+      .eq('invited_email',currentUser.email)
+      .maybeSingle();
+
+    if(membership){
+      // Link user_id if not yet linked (first login after invite)
+      if(!membership.user_id){
+        await sb.from('workspace_members').update({user_id:currentUser.id,joined_at:new Date().toISOString()}).eq('invited_email',currentUser.email);
+      }
       workspace=membership.workspaces;isOwner=false;userRole='member';
       workspaceMembers=[];
-    } else if(membership&&!membership.user_id){
-      // First login — link this user to their pending invite
-      await sb.from('workspace_members').update({user_id:currentUser.id,joined_at:new Date().toISOString()}).eq('invited_email',currentUser.email);
-      workspace=membership.workspaces;isOwner=false;userRole='member';
+      return;
+    }
+
+    // Check if user owns a workspace
+    const {data:ownedWs}=await sb.from('workspaces')
+      .select('*')
+      .eq('owner_id',currentUser.id)
+      .maybeSingle();
+
+    if(ownedWs){
+      workspace=ownedWs;isOwner=true;userRole='owner';
+      const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
+      workspaceMembers=members||[];
+    } else {
+      // No workspace yet — user is owner by default, workspace created on first invite
+      isOwner=true;userRole='owner';workspaceMembers=[];
     }
   }catch(e){
-    // No workspace yet — owner will create one when they invite someone
+    // On error default to owner so user isn't locked out
     isOwner=true;userRole='owner';
   }
 }
@@ -1015,19 +1027,22 @@ function populateAssigneeSelect(currentAssigneeId){
 }
 
 function enforcePermissions(t){
-  // If user is a member (not owner) and this is someone else's task assigned to them
-  // they can only edit status, checklist and notes
-  if(isOwner)return; // Owner can edit everything
-  if(!t||t.user_id===currentUser.id)return; // Own task — can edit everything
-  // Assigned task — restrict fields
-  const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
-  restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;el.style.opacity='.5';}});
-  document.getElementById('mtitle').textContent='View Task (assigned to you)';
-  // Show note
-  const note=document.createElement('div');
-  note.style.cssText='background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:#8a5500;margin-bottom:.75rem;';
-  note.textContent='You can update the status, checklist items and notes on this task.';
-  document.getElementById('fn').closest('.fr').before(note);
+  // Owner can always edit everything
+  if(isOwner)return;
+  // If task was created by current user — they can edit everything
+  if(!t||t.user_id===currentUser.id||!t.user_id)return;
+  // If task is assigned to current user by someone else — restrict fields
+  if(t.assignee_id===currentUser.id&&t.user_id!==currentUser.id){
+    const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
+    restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;el.style.opacity='.5';}});
+    document.getElementById('mtitle').textContent='View Task (assigned to you)';
+    const note=document.createElement('div');
+    note.className='permission-note';
+    note.style.cssText='background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:#8a5500;margin-bottom:.75rem;';
+    note.textContent='You can update the status, checklist items and notes on this task.';
+    const firstFr=document.getElementById('fn').closest('.fr');
+    if(firstFr)firstFr.before(note);
+  }
 }
 
 function clearPermissionRestrictions(){
