@@ -671,22 +671,48 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ── Config ────────────────────────────────────────────────────────────
+// ── WHY: Credentials hardcoded here ──────────────────────────────────
+// Previously the app showed a setup screen asking for these values on every
+// new device. That was frustrating for non-technical users. These keys are
+// safe to expose publicly because:
+// - Supabase anon key: Row Level Security (RLS) ensures users only ever
+//   read/write their own data regardless of who has the key
+// - EmailJS keys: worst case someone hits the 200/month free limit. Not a
+//   data breach. Acceptable tradeoff for zero-setup experience.
+// - Each user only needs to enter their email address in Help & Setup.
 const SB_URL='https://yxnriotzxqeryqndyfjo.supabase.co';
 const SB_KEY='sb_publishable_VgZTgCwoLpnNU3Cb9HKWoQ_FHu4R0js';
-const STORAGE_BUCKET='task-attachments';
+const STORAGE_BUCKET='task-attachments'; // Supabase Storage bucket for file attachments
 const APP_URL='https://lathjohn-me.github.io/TaskMaster/TaskMaster_Pro.html';
-// EmailJS — hardcoded shared account (each user only needs to enter their email address)
+
+// ── WHY: EmailJS shared account ───────────────────────────────────────
+// All users share one EmailJS account (owner's). This means new team members
+// only need to enter their email address — no EmailJS account setup needed.
+// Free tier is 200/month which is plenty for a small team.
+// If usage grows, upgrade the EmailJS plan rather than asking users to set up
+// their own accounts.
 const EJS_KEY='ktPVni5S7ePWHjB2a';
 const EJS_SVC='service_io8hbpi';
 const EJS_TPL='template_mkjoqy5';
 
-// ── State ─────────────────────────────────────────────────────────────
+// ── WHY: State stored in module-level variables ───────────────────────
+// No framework (React/Vue etc) — vanilla JS with simple module-level state.
+// Chosen because: single HTML file architecture, non-developer owner,
+// no build tools. Simple to understand and debug.
 let tasks=[],cfg={},cats=[],tab='All',eid=null;
 let sb=null,currentUser=null,realtimeSub=null;
 let pendingFiles=[],editingAttachments=[],clItems=[];
 let activePillFilter=null,calDate=new Date(),calView='week';
-// Multi-user workspace state
+
+// ── WHY: isOwner defaults to true ────────────────────────────────────
+// If workspace loading fails or is slow, we don't want the owner to be
+// accidentally locked out of their own tasks. Default to owner (full access)
+// and only downgrade to member after workspace loads confirm membership.
 let workspace=null,workspaceMembers=[],isOwner=true,userRole='owner';
+
+// ── WHY: Audit category in defaults ──────────────────────────────────
+// Added for RTO training material validation workflow — tasks generated
+// from compliance audits are tagged with this category and the unit code.
 const DEFAULT_CATS=[{name:'Personal',color:'#4F86C6'},{name:'Work',color:'#C8860A'},{name:'Finance',color:'#5BAD6F'},{name:'Projects',color:'#C45FAA'},{name:'Audit',color:'#E67E22'}];
 
 // ── Boot ──────────────────────────────────────────────────────────────
@@ -833,6 +859,13 @@ function showView(v){
 }
 
 // ── Real-time ─────────────────────────────────────────────────────────
+// ── WHY: Real-time subscription with auto-reconnect ──────────────────
+// Supabase real-time pushes changes to all open devices instantly.
+// Without this, changes on desktop only appear on mobile after a manual refresh.
+// The subscription can silently drop (phone sleep, network change) — so we
+// auto-reconnect after 3 seconds on any disconnection.
+// visibilitychange event reloads data when app comes back to foreground
+// (e.g. you switch from another app back to TaskMaster on Android).
 function setupRealtime(){
   if(realtimeSub){sb.removeChannel(realtimeSub);}
   const handleTaskChange=async(payload)=>{
@@ -862,6 +895,13 @@ function setupRealtime(){
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────
+// ── WHY: Load strategy — local first, then Supabase ──────────────────
+// Early bug: if Supabase returned an empty array (slow connection or brief
+// outage), the app would wipe ALL tasks from localStorage. Lost real data.
+// Fix: load localStorage immediately on boot so tasks always show.
+// Then Supabase loads and updates — but NEVER overwrites with empty.
+// If Supabase returns 0 tasks but local has tasks → keep local and warn.
+// This makes the app resilient to connectivity issues.
 async function loadFromSupabase(){
   if(!sb||!currentUser)return;
   setDS('syncing','Loading...');
@@ -899,6 +939,12 @@ async function loadFromSupabase(){
   }
 }
 
+// ── WHY: Member check before owner check ─────────────────────────────
+// Must check workspace_members first. If we checked workspaces (owner) first
+// and the invited user happened to also own a workspace, they'd be treated
+// as owner of their own workspace rather than member of yours.
+// Also uses maybeSingle() not single() — single() throws an error when no
+// row exists, maybeSingle() returns null gracefully.
 async function loadWorkspace(){
   if(!sb||!currentUser)return;
   try{
@@ -996,6 +1042,12 @@ async function loadActivityLog(taskId){
   }catch(e){return[];}
 }
 
+// ── WHY: upsert individual tasks, never bulk-write ───────────────────
+// Early version (Google Drive) saved ALL tasks as one JSON file.
+// If two devices were open simultaneously, last save won overwrote the other.
+// Supabase upsert by ID = each task is its own database row.
+// Concurrent saves on different tasks from different devices = no conflict.
+// Only ever call this for ONE task at a time.
 async function upsertTask(t){
   if(!sb||!currentUser)return;
   setDS('syncing','Saving...');
@@ -1106,6 +1158,13 @@ function populateAssigneeSelect(currentAssigneeId){
   if(currentAssigneeId)s.value=currentAssigneeId;
 }
 
+// ── WHY: Permission enforcement in edit modal ─────────────────────────
+// Members can only edit status, checklist and notes on tasks assigned to them
+// by the owner. They cannot change task name, category, priority, due date etc.
+// This keeps the owner in control of task definitions while giving members
+// freedom to update progress.
+// Owner always gets full access — isOwner check is first.
+// Tasks with no user_id (created before multi-user) are treated as owner's.
 function enforcePermissions(t){
   // Owner can always edit everything
   if(isOwner)return;
@@ -1241,6 +1300,15 @@ function renderActivityLog(log){
 
 function clrForm(){['fn','fas','ftg','fno','ft'].forEach(id=>document.getElementById(id).value='');populateCatSelect();const ct=tab!=='All'&&tab!=='History'&&cats.find(c=>c.name===tab)?tab:(cats[0]&&cats[0].name)||'Personal';document.getElementById('fc').value=ct;document.getElementById('fpr').value='Medium';document.getElementById('fst').value='Not Started';document.getElementById('fpc').value=0;document.getElementById('frm').value='';document.getElementById('fron').checked=false;document.getElementById('frn').value=1;document.getElementById('fru').value='days';document.getElementById('frf').value='due';document.getElementById('fre').value='';togRec();}
 
+// ── WHY: assignee_id stored inside task data ─────────────────────────
+// The assignee name (free text) was the original field. Multi-user release
+// added assignee_id (Supabase user UUID) so the app can filter tasks by
+// actual user identity rather than name string matching.
+// IMPORTANT: Both fields are stored — assignee (display name) and
+// assignee_id (UUID). The RLS policy uses assignee_id for access control.
+// Existing tasks assigned before multi-user release need a SQL migration:
+// update tasks set data = data || jsonb_build_object('assignee_id', 'UUID')
+// where lower(data->>'assignee') = 'membername';
 async function saveTask(){
   const nm=document.getElementById('fn').value.trim();if(!nm){toast('Please enter a task name.');return;}
   const ron=document.getElementById('fron').checked;
@@ -1478,6 +1546,11 @@ function renderCal(){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
+// ── WHY: Done Today not all-time completed ───────────────────────────
+// Originally showed total completed tasks which grew to hundreds and became
+// meaningless. Changed to show tasks completed today only — much more useful
+// as a daily progress indicator. Uses local date (not UTC) to correctly
+// handle Australian timezone (AEST = UTC+10).
 function dash(){
   const today=new Date();today.setHours(0,0,0,0);
   // Use local date string to avoid UTC offset issues (important for Australian timezones)
@@ -1601,6 +1674,12 @@ function copyToClipboard(text){
 }
 
 // ── Weekly email backup ───────────────────────────────────────────────
+// ── WHY: Weekly email backup ──────────────────────────────────────────
+// Supabase is reliable but user wanted peace of mind. Weekly email backup
+// fires every 7 days when app is opened. Includes all task details and
+// checklists formatted as readable text. Sits in email inbox as a record.
+// Uses same EmailJS service as reminders. tm_last_backup in localStorage
+// tracks last send date.
 function checkWeeklyBackup(){
   if(!cfg.email)return;
   const lastBackup=localStorage.getItem('tm_last_backup');
@@ -1644,6 +1723,13 @@ function sendWeeklyBackup(){
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────
+// ── WHY: Reminders fire once per day on app open ─────────────────────
+// True background notifications require a push notification service (Firebase
+// etc) and a backend. Too complex for a single HTML file app.
+// Instead: check once per day when the app is opened. localStorage key
+// tm_lc stores the last check date. If already checked today, skip.
+// This means reminders only work if you open the app — acceptable tradeoff.
+// Email delivery means the reminder stays in inbox even if app closes.
 function checkReminders(){if(!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td);}
 function sendEmail(items){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{emailjs.init(EJS_KEY);const body=items.map(t=>`• ${t.name} — Due: ${t.due}${t.time?' at '+t.time:''} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(EJS_SVC,EJS_TPL,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast('Reminder sent ✓')).catch(e=>toast('Email error: '+(e.text||e)));};document.head.appendChild(s);}
 function testEmail(){saveCfgLocal();sendEmail([{name:'Test Reminder',due:new Date().toISOString().split('T')[0],time:'',priority:'High',recur:false}]);}
