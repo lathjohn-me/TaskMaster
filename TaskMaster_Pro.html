@@ -914,14 +914,23 @@ async function loadFromSupabase(){
     if(isOwner){
       taskQuery=taskQuery.eq('user_id',currentUser.id);
     } else {
-      // Member — load own tasks + tasks assigned to me
-      taskQuery=taskQuery.or(`user_id.eq.${currentUser.id},data->assignee_id.eq."${currentUser.id}"`);
+      // Member — load own tasks + tasks assigned to me.
+      // WHY ->> not ->: ->> extracts JSON value as text; -> returns JSON which can't
+      // be compared with .eq. to a plain UUID string. Also no quotes around the UUID
+      // — with ->> the value is raw text, wrapping it in "..." would compare to a
+      // literal quoted string and never match. Supabase returns 400 if either is wrong.
+      taskQuery=taskQuery.or(`user_id.eq.${currentUser.id},data->>assignee_id.eq.${currentUser.id}`);
     }
     const {data:rows,error}=await taskQuery;
     if(error)throw error;
     if(rows!==null&&rows!==undefined){
       const remoteTasks=rows.map(r=>({...r.data,id:r.id,updated:r.updated_at}));
-      if(remoteTasks.length===0&&tasks.length>0){
+      // WHY isOwner guard: the "keep local data" safety net was designed for the
+      // owner — so a transient Supabase error doesn't wipe their tasks. For members,
+      // an empty result is legitimate (no tasks assigned to them), and trusting
+      // stale localStorage would let previously-cached tasks from buggy states
+      // persist. Members always trust Supabase.
+      if(isOwner&&remoteTasks.length===0&&tasks.length>0){
         toast('Warning: Supabase returned no tasks — keeping local data. Check connection.');
         setDS('','Check connection');return;
       }
@@ -1314,7 +1323,6 @@ async function saveTask(){
   const ron=document.getElementById('fron').checked;
   const taskId=eid||'task_'+Date.now();
   const assigneeId=document.getElementById('fas').value;
-  console.log('DEBUG: assigneeId from dropdown:', assigneeId, 'workspaceMembers:', workspaceMembers);
   const assigneeMember=workspaceMembers.find(m=>m.user_id===assigneeId);
   const assigneeName=assigneeId===currentUser.id?currentUser.email.split('@')[0]:(assigneeMember?assigneeMember.invited_email.split('@')[0]:'');
   let attachments=editingAttachments.filter(a=>!a._deleted);
