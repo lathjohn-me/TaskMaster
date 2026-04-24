@@ -695,6 +695,49 @@ const EJS_KEY='ktPVni5S7ePWHjB2a';
 const EJS_SVC='service_io8hbpi';
 const EJS_TPL='template_mkjoqy5';
 
+// ─────────────────────────────────────────────────────────────────────────
+// Debugging session notes — April 24, 2026
+// ─────────────────────────────────────────────────────────────────────────
+// Symptom reported: "Sharon sees all of John's tasks instead of only her
+// assigned ones." Previous session misdiagnosed this as an RLS policy bug
+// and spent many rounds rewriting the policy SQL. The actual chain was:
+//
+//   1. loadFromSupabase's member query was malformed:
+//      `data->assignee_id.eq."<uuid>"` — wrong JSON operator (-> returns
+//      JSON, ->> returns text) AND wrapped the UUID in quotes. Supabase
+//      returned 400 Bad Request on every call.
+//   2. The thrown error hit the catch block, which showed "Offline" but
+//      did NOT clear the tasks array or localStorage. The app rendered
+//      whatever tm_tasks happened to hold — in Sharon's case, John's
+//      tasks cached from a prior buggy state.
+//   3. doSignOut() also did not clear localStorage, so testing by
+//      switching accounts in one browser kept leaking John's data into
+//      Sharon's session after logout.
+//   4. Once the query was fixed, a second bug surfaced: the RLS policy
+//      cast data->>'assignee_id' to UUID, but 3 tasks had assignee_id=""
+//      and 2 had assignee_id="pending_<email>" — neither valid UUIDs.
+//      Postgres 22P02 error aborted the entire query with 400.
+//
+// Fixes applied this session:
+//   - loadFromSupabase: -> to ->>, dropped quotes around UUID (~line 922)
+//   - loadFromSupabase: "keep local data on empty" safety net now owner-
+//     only so stale member cache can't mask a legitimate empty result
+//   - doSignOut: wipe all tm_* localStorage keys on signout
+//   - populateAssigneeSelect: pending invitees removed from dropdown;
+//     they can't be saved as assignee_id until they have a real user_id
+//   - loadWorkspace owner branch: silently migrates any lingering
+//     pending_<email> assignee_ids to the joined member's real UUID
+//   - RLS policy (DB side): added NULL and empty-string guards before
+//     the ::uuid cast. Also scrubbed the 3 empty-string rows and migrated
+//     the 2 pending-marker rows as one-off data fixes.
+//
+// Key takeaway for future sessions: if something like "member sees wrong
+// data" appears and RLS looks suspect, check the Network tab for 400s on
+// the tasks endpoint before touching the policy. Response body from
+// Supabase will tell you whether it's a query syntax error (fix the app)
+// or a cast error (fix the data / policy guards).
+// ─────────────────────────────────────────────────────────────────────────
+
 // ── WHY: State stored in module-level variables ───────────────────────
 // No framework (React/Vue etc) — vanilla JS with simple module-level state.
 // Chosen because: single HTML file architecture, non-developer owner,
@@ -1002,6 +1045,26 @@ async function loadWorkspace(){
       workspace=ownedWs;isOwner=true;userRole='owner';
       const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
       workspaceMembers=members||[];
+      // WHY heal pending assignee_ids here:
+      // If owner assigned a task to someone before they joined (bug fixed in
+      // populateAssigneeSelect but already-saved tasks remain), data.assignee_id
+      // is "pending_<email>" instead of a UUID. That breaks the RLS UUID cast
+      // and 400s the tasks query for the joined member. Members can't fix it
+      // themselves — RLS blocks their update. Owner runs it silently on load.
+      // Safe to run repeatedly: only touches rows where assignee_id still
+      // matches the pending marker for a now-joined member.
+      for(const m of workspaceMembers){
+        if(!m.user_id||!m.invited_email)continue;
+        const pendingMarker='pending_'+m.invited_email;
+        const {data:ownedTasks}=await sb.from('tasks').select('id,data').eq('user_id',currentUser.id);
+        if(!ownedTasks)continue;
+        for(const row of ownedTasks){
+          if(row.data&&row.data.assignee_id===pendingMarker){
+            const newData={...row.data,assignee_id:m.user_id};
+            await sb.from('tasks').update({data:newData,updated_at:new Date().toISOString()}).eq('id',row.id);
+          }
+        }
+      }
     } else {
       // No workspace yet — user is owner by default, workspace created on first invite
       isOwner=true;userRole='owner';workspaceMembers=[];
@@ -1172,14 +1235,18 @@ function populateCatSelect(){const s=document.getElementById('fc');if(!s)return;
 
 function populateAssigneeSelect(currentAssigneeId){
   const s=document.getElementById('fas');if(!s)return;
-  // Build options: self + all workspace members
+  // Build options: self + all workspace members who have joined.
+  // WHY pending invites excluded from the dropdown:
+  // Previously, pending invites showed up as "name (invited)" with
+  // assignee_id = "pending_<email>". Selecting one would write that string
+  // to data.assignee_id — not a valid UUID. Later, the RLS policy's
+  // (data->>'assignee_id')::uuid cast would fail on those rows with
+  // PostgreSQL error 22P02, killing the entire tasks query with a 400.
+  // Until a member has actually joined and has a user_id, they can't be
+  // assigned tasks. Owner will still see them as pending in Team Settings.
   const options=[{id:'',label:'Unassigned'},{id:currentUser.id,label:'Me ('+currentUser.email.split('@')[0]+')'}];
   workspaceMembers.filter(m=>m.user_id&&m.user_id!==currentUser.id).forEach(m=>{
     options.push({id:m.user_id,label:m.invited_email.split('@')[0]+' ('+m.invited_email+')'});
-  });
-  // Also add pending invites (no user_id yet) as display only
-  workspaceMembers.filter(m=>!m.user_id).forEach(m=>{
-    options.push({id:'pending_'+m.invited_email,label:m.invited_email+' (invited)'});
   });
   s.innerHTML=options.map(o=>`<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('');
   if(currentAssigneeId)s.value=currentAssigneeId;
