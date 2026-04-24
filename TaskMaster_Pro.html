@@ -835,7 +835,17 @@ async function doForgot(){
 
 async function doSignOut(){
   if(realtimeSub){sb.removeChannel(realtimeSub);realtimeSub=null;}
-  await sb.auth.signOut();currentUser=null;tasks=[];cats=DEFAULT_CATS;showScreen('login-screen');
+  await sb.auth.signOut();
+  // WHY clear localStorage: without this, tasks/categories/settings from the
+  // previous account would leak to the next person to log in on the same
+  // browser. The loadFromSupabase() fallback-to-local logic would then show
+  // them the old user's data whenever the network query had any hiccup.
+  // Symptom if omitted: user A signs out, user B signs in, sees user A's
+  // tasks briefly or permanently depending on whether the Supabase fetch
+  // succeeds. Clear all tm_* keys to be safe.
+  ['tm_tasks','tm_cats','tm_cfg','tm_last_backup','tm_lc'].forEach(k=>localStorage.removeItem(k));
+  currentUser=null;tasks=[];cats=DEFAULT_CATS;cfg={};
+  showScreen('login-screen');
 }
 
 // ── Main ──────────────────────────────────────────────────────────────
