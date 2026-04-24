@@ -880,7 +880,16 @@ function setupRealtime(){
     setDS('on','Live');
   };
   realtimeSub=sb.channel('tasks-rt')
-    .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.${currentUser.id}`},handleTaskChange)
+    // WHY no filter: Supabase realtime filters only support simple equality on
+    // top-level columns — they can't express "user_id=me OR data->>assignee_id=me".
+    // For owners, user_id=eq.self was redundant (they own everything anyway).
+    // For members, it blocked events for tasks assigned to them — they'd only
+    // see new assignments on next app open. Removing the server filter means
+    // members receive events for any task RLS allows them to see, and the
+    // client-side check in handleTaskChange filters down to their own +
+    // assigned-to-them tasks. RLS is still the security boundary — realtime
+    // respects it.
+    .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},handleTaskChange)
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){setDS('on','Live');}
       else if(status==='CLOSED'||status==='CHANNEL_ERROR'){
