@@ -753,6 +753,9 @@ let activePillFilter=null,calDate=new Date(),calView='week';
 // and only downgrade to member after workspace loads confirm membership.
 let workspace=null,workspaceMembers=[],isOwner=true,userRole='owner';
 
+// pendingHealDone — heal runs once per session. See loadWorkspace owner branch.
+let pendingHealDone=false;
+
 // ── WHY: Audit category in defaults ──────────────────────────────────
 // Added for RTO training material validation workflow — tasks generated
 // from compliance audits are tagged with this category and the unit code.
@@ -767,6 +770,18 @@ async function init(){
   if(localTasks){try{tasks=JSON.parse(localTasks);}catch(e){tasks=[];}}
   sb=supabase.createClient(SB_URL,SB_KEY);
   handleUrlParams();
+
+  // WHY visibilitychange attached here once, not in setupRealtime:
+  // Previously this listener was inside setupRealtime and re-added every
+  // time the realtime channel reconnected. Each reconnect stacked another
+  // listener, and once the channel started cycling (CLOSED → reconnect),
+  // every tab-focus fired loadFromSupabase N times instead of once.
+  // Symptom: thousands of workspace_members requests per minute.
+  // Fix: attach once at app boot, guard with currentUser check so it
+  // only fires when signed in.
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&currentUser)loadFromSupabase();
+  });
 
   // Handle Supabase auth redirect (email confirmation, password reset)
   // Supabase appends tokens as URL hash fragments: #access_token=xxx&type=signup
@@ -888,6 +903,7 @@ async function doSignOut(){
   // succeeds. Clear all tm_* keys to be safe.
   ['tm_tasks','tm_cats','tm_cfg','tm_last_backup','tm_lc'].forEach(k=>localStorage.removeItem(k));
   currentUser=null;tasks=[];cats=DEFAULT_CATS;cfg={};
+  pendingHealDone=false;
   showScreen('login-screen');
 }
 
@@ -939,8 +955,8 @@ function setupRealtime(){
     // assigned to them, but that caused the subscription to drop repeatedly
     // (symptom: Live → Reconnecting loop). Restored the original filter.
     // Trade-off: members won't get push-updates for new assignments, but the
-    // visibilitychange handler below calls loadFromSupabase() when they
-    // refocus the app, which covers the gap.
+    // visibilitychange handler (attached once at boot in init()) covers it
+    // by reloading when the tab becomes visible.
     .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.${currentUser.id}`},handleTaskChange)
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){setDS('on','Live');}
@@ -949,10 +965,6 @@ function setupRealtime(){
         setTimeout(()=>setupRealtime(),3000);
       }
     });
-  // Reload from Supabase when tab becomes visible again
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&currentUser)loadFromSupabase();
-  },{once:false});
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -1045,23 +1057,28 @@ async function loadWorkspace(){
       workspace=ownedWs;isOwner=true;userRole='owner';
       const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
       workspaceMembers=members||[];
-      // WHY heal pending assignee_ids here:
+      // WHY heal pending assignee_ids here (once per session):
       // If owner assigned a task to someone before they joined (bug fixed in
       // populateAssigneeSelect but already-saved tasks remain), data.assignee_id
       // is "pending_<email>" instead of a UUID. That breaks the RLS UUID cast
       // and 400s the tasks query for the joined member. Members can't fix it
       // themselves — RLS blocks their update. Owner runs it silently on load.
-      // Safe to run repeatedly: only touches rows where assignee_id still
-      // matches the pending marker for a now-joined member.
-      for(const m of workspaceMembers){
-        if(!m.user_id||!m.invited_email)continue;
-        const pendingMarker='pending_'+m.invited_email;
-        const {data:ownedTasks}=await sb.from('tasks').select('id,data').eq('user_id',currentUser.id);
-        if(!ownedTasks)continue;
-        for(const row of ownedTasks){
-          if(row.data&&row.data.assignee_id===pendingMarker){
-            const newData={...row.data,assignee_id:m.user_id};
-            await sb.from('tasks').update({data:newData,updated_at:new Date().toISOString()}).eq('id',row.id);
+      // Gated by pendingHealDone flag so it only runs on the first workspace
+      // load per session — otherwise every visibilitychange / realtime reload
+      // would re-scan every owned task for every member, which is pointless
+      // and spammy.
+      if(!pendingHealDone){
+        pendingHealDone=true;
+        for(const m of workspaceMembers){
+          if(!m.user_id||!m.invited_email)continue;
+          const pendingMarker='pending_'+m.invited_email;
+          const {data:ownedTasks}=await sb.from('tasks').select('id,data').eq('user_id',currentUser.id);
+          if(!ownedTasks)continue;
+          for(const row of ownedTasks){
+            if(row.data&&row.data.assignee_id===pendingMarker){
+              const newData={...row.data,assignee_id:m.user_id};
+              await sb.from('tasks').update({data:newData,updated_at:new Date().toISOString()}).eq('id',row.id);
+            }
           }
         }
       }
