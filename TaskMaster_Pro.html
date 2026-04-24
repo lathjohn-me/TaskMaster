@@ -1314,6 +1314,7 @@ async function saveTask(){
   const ron=document.getElementById('fron').checked;
   const taskId=eid||'task_'+Date.now();
   const assigneeId=document.getElementById('fas').value;
+  console.log('DEBUG: assigneeId from dropdown:', assigneeId, 'workspaceMembers:', workspaceMembers);
   const assigneeMember=workspaceMembers.find(m=>m.user_id===assigneeId);
   const assigneeName=assigneeId===currentUser.id?currentUser.email.split('@')[0]:(assigneeMember?assigneeMember.invited_email.split('@')[0]:'');
   let attachments=editingAttachments.filter(a=>!a._deleted);
