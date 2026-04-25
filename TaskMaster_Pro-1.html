@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskMaster">
+<meta name="theme-color" content="#1F3864">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="shortcut icon" href="icons/icon-192.png">
+<title>TaskMaster</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F8FC;--surface:#fff;--surface2:#F0F2F8;
+  --border:#E4E7F0;--border2:#CDD2E8;
+  --text:#1A1D2E;--text2:#5A6080;--text3:#9AA0BC;
+  --navy:#1F3864;--blue:#2E75B6;--blue-light:#EBF3FB;
+  --shadow:0 2px 8px rgba(26,29,46,.08);--shadow2:0 8px 32px rgba(26,29,46,.14);
+  --radius:12px;--radius-sm:8px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* Header */
+.header{background:linear-gradient(135deg,#1F3864,#2E75B6);color:#fff;padding:.6rem 1.25rem;min-height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25);gap:.5rem;flex-wrap:nowrap}
+.header-left{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0;overflow:hidden}
+.logo{font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:-.5px;white-space:nowrap}
+.logo span{opacity:.5;font-weight:400;font-size:.75rem;margin-left:.35rem;font-family:'DM Mono',monospace}
+.header-right{display:flex;gap:.3rem;align-items:center;flex-shrink:0}
+.sync-pill{display:flex;align-items:center;gap:.28rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:.2rem .5rem;border-radius:20px;font-size:.68rem;color:rgba(255,255,255,.85);white-space:nowrap}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0}
+.sync-dot.on{background:#5BAD6F}.sync-dot.syncing{background:#E8A838;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Buttons */
+.btn{padding:.4rem .85rem;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:.81rem;font-weight:600;font-family:'DM Sans',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap}
+.btn-white{background:#fff;color:var(--navy)}.btn-white:hover{background:var(--blue-light)}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}.btn-ghost:hover{background:rgba(255,255,255,.2)}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--blue)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#1a5fa0}
+.btn-red{background:#E24B4A;color:#fff}.btn-red:hover{background:#c03a39}
+.btn-green{background:#5BAD6F;color:#fff}.btn-green:hover{background:#4a9a5c}
+.btn-sm{padding:.28rem .65rem;font-size:.74rem}
+.btn-outline{background:transparent;color:var(--text2);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
+
+/* Layout */
+.container{max-width:1100px;margin:0 auto;padding:1.25rem}
+
+/* Auth */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.auth-card{background:var(--surface);border-radius:18px;padding:2rem;width:100%;max-width:420px;box-shadow:var(--shadow2)}
+.auth-card .logo-big{font-size:2.5rem;text-align:center;margin-bottom:.5rem}
+.auth-card h2{font-size:1.3rem;font-weight:700;color:var(--navy);text-align:center;margin-bottom:.4rem}
+.auth-card p{font-size:.85rem;color:var(--text2);text-align:center;margin-bottom:1.5rem;line-height:1.5}
+.auth-card .fr{margin-bottom:.9rem}
+.auth-card label{display:block;font-size:.74rem;font-weight:700;color:var(--text2);margin-bottom:.28rem;text-transform:uppercase;letter-spacing:.5px}
+.auth-card input{width:100%;padding:.58rem .82rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.9rem;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);transition:border-color .15s}
+.auth-card input:focus{outline:none;border-color:var(--blue)}
+.auth-btn{width:100%;padding:.7rem;background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);font-size:.95rem;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:.5rem;transition:background .15s}
+.auth-btn:hover{background:var(--blue)}
+.auth-err{font-size:.82rem;padding:.5rem .75rem;border-radius:var(--radius-sm);margin-bottom:.75rem;display:none}
+.auth-err.error{background:#FCEBEB;color:#C03030}.auth-err.success{background:#E2EFDA;color:#375623}
+.auth-switch{text-align:center;margin-top:1rem;font-size:.82rem;color:var(--text2)}
+.auth-switch a{color:var(--blue);cursor:pointer;font-weight:600}
+.auth-forgot{text-align:right;margin-top:-.4rem;margin-bottom:.7rem;font-size:.78rem}
+.auth-forgot a{color:var(--blue);cursor:pointer}
+
+/* Dashboard collapse */
+.dash-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--radius);padding:.5rem .9rem;box-shadow:var(--shadow);cursor:pointer;user-select:none;transition:background .15s;gap:.5rem;margin-bottom:1rem}
+.dash-bar:hover{background:var(--surface2)}
+.dash-pills{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;flex:1}
+.dash-pill{font-size:.72rem;font-weight:600;padding:.2rem .55rem;border-radius:20px;white-space:nowrap;cursor:pointer;transition:all .15s}
+.dash-pill:hover{transform:translateY(-1px);filter:brightness(.93)}
+.dash-pill.active-filter{box-shadow:0 0 0 2px var(--navy)}
+.dp-tt{background:#F9EDF6;color:#6a1a5a}.dp-ov{background:#FCEBEB;color:#C03030}
+.dp-sn{background:#FAEEDA;color:#8a5500}.dp-ip{background:#EBF3FB;color:#1a4a7a}
+.dp-dn{background:#EAF3DE;color:#3a6010}.dp-rc{background:#EEEEFF;color:#4444BB}
+.dash-chevron{font-size:.7rem;color:var(--text3);transition:transform .25s;flex-shrink:0}
+.dash-chevron.open{transform:rotate(180deg)}
+.dash-expanded{overflow:hidden;max-height:0;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
+.dash-expanded.open{max-height:700px}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.6rem;margin-bottom:1rem}
+.stat{background:var(--surface);border-radius:var(--radius);padding:.85rem .9rem;box-shadow:var(--shadow);border-top:3px solid var(--border);text-align:center;transition:transform .15s}
+.stat:hover{transform:translateY(-2px)}
+.stat.s-ov{border-top-color:#E24B4A}.stat.s-sn{border-top-color:#EF9F27}.stat.s-ip{border-top-color:#4F86C6}
+.stat.s-dn{border-top-color:#5BAD6F}.stat.s-tt{border-top-color:#C45FAA}.stat.s-rc{border-top-color:#7B68EE}
+.stat-n{font-size:1.8rem;font-weight:700;line-height:1;font-family:'DM Mono',monospace}
+.stat-l{font-size:.67rem;color:var(--text3);margin-top:.2rem;font-weight:500}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.5rem}
+@media(max-width:600px){.charts-row{grid-template-columns:1fr}}
+.chart-card{background:var(--surface);border-radius:var(--radius);padding:.9rem 1rem;box-shadow:var(--shadow)}
+.chart-card h3{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:.75rem}
+.bar-row{display:flex;align-items:center;gap:.45rem;margin-bottom:.38rem}
+.bar-lbl{width:70px;font-size:.73rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;background:var(--surface2);border-radius:4px;height:13px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1);min-width:2px}
+.bar-n{font-size:.69rem;color:var(--text3);min-width:16px;text-align:right;font-family:'DM Mono',monospace}
+.pie-wrap{display:flex;align-items:center;gap:1rem}
+.pie-leg{display:flex;flex-direction:column;gap:.35rem}
+.pie-li{display:flex;align-items:center;gap:.38rem;font-size:.73rem;color:var(--text2)}
+.pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* Tabs */
+.tabs{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem;background:var(--surface);padding:.32rem;border-radius:var(--radius);box-shadow:var(--shadow);width:fit-content;max-width:100%}
+.tab{padding:.35rem .85rem;border-radius:var(--radius-sm);cursor:pointer;font-size:.8rem;font-weight:600;color:var(--text2);transition:all .15s;border:none;background:none;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.tab:hover{background:var(--surface2);color:var(--text)}
+.tab.active{background:var(--navy);color:#fff}
+.tab.history-tab.active{background:#7B68EE}
+
+/* Toolbar */
+.toolbar{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.toolbar select,.toolbar input[type="text"]{padding:.4rem .65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.81rem;background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.toolbar input[type="text"]{flex:1;min-width:140px}
+.toggle-label{display:flex;align-items:center;gap:.38rem;font-size:.79rem;color:var(--text2);cursor:pointer;white-space:nowrap;margin-left:auto}
+
+/* Calendar */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-title{font-size:1rem;font-weight:700;color:var(--navy)}
+.cal-nav{display:flex;gap:.4rem;align-items:center}
+.cal-view-toggle{display:flex;background:var(--surface2);border-radius:var(--radius-sm);padding:.2rem;gap:.2rem}
+.cal-view-btn{padding:.28rem .7rem;border-radius:6px;border:none;cursor:pointer;font-size:.75rem;font-weight:600;font-family:'DM Sans',sans-serif;background:transparent;color:var(--text2);transition:all .15s}
+.cal-view-btn.active{background:var(--navy);color:#fff}
+.cal-grid{display:grid;gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.cal-grid.weekly{grid-template-columns:repeat(7,1fr)}
+.cal-grid.monthly{grid-template-columns:repeat(7,1fr)}
+.cal-day-hdr{background:var(--navy);color:#fff;text-align:center;padding:.4rem .2rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.cal-cell{background:var(--surface);padding:.4rem;min-height:80px;cursor:pointer;transition:background .15s;position:relative}
+.cal-cell:hover{background:var(--blue-light)}
+.cal-cell.today{background:#EBF3FB}
+.cal-cell.today .cal-date{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+.cal-cell.other-month{background:var(--surface2);opacity:.6}
+.cal-cell.od-day{border-left:3px solid #E24B4A;}
+.cal-date{font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:.25rem;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+.cal-task-dot{font-size:.68rem;padding:.12rem .35rem;border-radius:4px;margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500}
+.cal-more{font-size:.65rem;color:var(--text3);font-style:italic}
+.cal-week-time{grid-column:1;background:var(--surface2);padding:.3rem .4rem;text-align:right;font-size:.65rem;color:var(--text3);border-right:1px solid var(--border);font-family:'DM Mono',monospace}
+
+/* Task cards */
+.task-list{display:flex;flex-direction:column;gap:.42rem}
+.tc{background:var(--surface);border-radius:var(--radius);padding:.75rem .9rem;box-shadow:var(--shadow);border-left:4px solid var(--border);display:grid;grid-template-columns:auto 1fr auto;gap:.65rem;align-items:start;transition:all .2s}
+.tc:hover{box-shadow:var(--shadow2);transform:translateY(-1px)}
+.tc.done{opacity:.55;background:var(--surface2)}
+.tc.od-card{box-shadow:0 0 0 1px rgba(226,75,74,.2),var(--shadow)}
+.chk{width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+.chk.on{background:#5BAD6F;border-color:#5BAD6F}
+.t-body{min-width:0}
+.t-name{font-size:.91rem;font-weight:600;color:var(--text);margin-bottom:.26rem;word-break:break-word;line-height:1.35}
+.tc.done .t-name{text-decoration:line-through;color:var(--text3)}
+.t-meta{display:flex;flex-wrap:wrap;gap:.26rem;align-items:center}
+.b{font-size:.67rem;font-weight:600;padding:.16rem .46rem;border-radius:20px;white-space:nowrap}
+.b-ph{background:#FCEBEB;color:#C03030}.b-pm{background:#FAEEDA;color:#8a5500}.b-pl{background:#EAF3DE;color:#3a6010}
+.b-due{background:var(--surface2);color:var(--text2)}.b-due.od{background:#FCEBEB;color:#C03030}.b-due.sn{background:#FAEEDA;color:#8a5500}
+.b-as{background:#EEF2FF;color:#3344AA}.b-rm{background:#FFF0E8;color:#B05000}
+.b-rc{background:#EEEEFF;color:#4444BB}.b-tg{background:#F5F0FF;color:#6040A0}.b-hi{background:var(--surface2);color:var(--text3);font-style:italic}
+.prog-row{display:flex;align-items:center;gap:.45rem;margin-top:.35rem}
+.prog-track{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;max-width:180px}
+.prog-fill{height:100%;border-radius:3px;transition:width .4s}
+.prog-pct{font-size:.69rem;color:var(--text3);font-family:'DM Mono',monospace}
+.t-notes{font-size:.75rem;color:var(--text3);margin-top:.26rem;font-style:italic;line-height:1.4}
+.t-acts{display:flex;flex-direction:column;gap:.26rem;align-items:flex-end;flex-shrink:0}
+.ib{background:none;border:none;cursor:pointer;padding:.26rem;border-radius:6px;font-size:.93rem;color:var(--text3);transition:all .15s}
+.ib:hover{background:var(--surface2);color:var(--text)}
+.empty{text-align:center;padding:3rem;color:var(--text3)}
+.sec-hdr{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:.38rem .2rem;border-bottom:1px solid var(--border);margin-bottom:.45rem}
+
+/* Checklist */
+.checklist{margin-top:.45rem;border-top:1px solid var(--border);padding-top:.38rem}
+.cl-item{display:flex;align-items:center;gap:.45rem;padding:.2rem 0;font-size:.8rem;color:var(--text2)}
+.cl-item input[type="checkbox"]{cursor:pointer;flex-shrink:0;width:14px;height:14px}
+.cl-item.cl-done{color:var(--text3);text-decoration:line-through}
+.cl-progress{font-size:.69rem;color:var(--text3);margin-top:.22rem;font-family:'DM Mono',monospace}
+
+/* Attachments */
+.attachments{margin-top:.42rem;display:flex;flex-wrap:wrap;gap:.32rem}
+.att-chip{display:inline-flex;align-items:center;gap:.28rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.18rem .48rem;font-size:.71rem;color:var(--text2);text-decoration:none;transition:all .15s}
+.att-chip:hover{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
+.att-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:.78rem;padding:0;margin-left:.08rem}
+.att-del:hover{color:#E24B4A}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(26,29,46,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:16px;padding:1.5rem;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.22);-webkit-overflow-scrolling:touch}
+.modal h2{font-size:1.1rem;font-weight:700;margin-bottom:1.15rem;color:var(--navy)}
+.fr{margin-bottom:.8rem}
+.fr label{display:block;font-size:.69rem;font-weight:700;color:var(--text2);margin-bottom:.26rem;text-transform:uppercase;letter-spacing:.8px}
+.fr input,.fr select,.fr textarea{width:100%;padding:.46rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.86rem;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);transition:border-color .15s}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--blue)}
+.fr textarea{resize:vertical;min-height:58px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:.68rem}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.68rem}
+.modal-btns{display:flex;gap:.45rem;justify-content:flex-end;margin-top:1.15rem;padding-top:.9rem;border-top:1px solid var(--border)}
+
+/* Checklist editor */
+.cl-editor{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:.45rem;background:var(--surface2);min-height:40px}
+.cl-edit-item{display:flex;align-items:center;gap:.38rem;margin-bottom:.32rem}
+.cl-edit-item input[type="text"]{flex:1;padding:.28rem .48rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem;font-family:'DM Sans',sans-serif;background:#fff;color:var(--text)}
+.cl-edit-item input[type="text"]:focus{outline:none;border-color:var(--blue)}
+.cl-add-row{display:flex;gap:.38rem;margin-top:.4rem}
+.cl-add-row input{flex:1;padding:.28rem .48rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem;font-family:'DM Sans',sans-serif;background:#fff;color:var(--text)}
+.cl-add-row input:focus{outline:none;border-color:var(--blue)}
+
+/* Upload */
+.upload-area{border:2px dashed var(--border2);border-radius:var(--radius-sm);padding:.9rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface2)}
+.upload-area:hover{border-color:var(--blue);background:var(--blue-light)}
+.upload-area p{font-size:.8rem;color:var(--text3);margin-top:.22rem}
+
+/* Recurrence */
+.rec-box{background:#F0F4FF;border:1.5px solid #C8D4F8;border-radius:var(--radius);padding:.85rem .95rem;margin-bottom:.8rem}
+.rec-toggle{display:flex;align-items:center;gap:.45rem;font-size:.84rem;font-weight:600;color:#3040A0;cursor:pointer}
+.rec-body{display:none;margin-top:.8rem}.rec-body.vis{display:block}
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem}
+.rec-hint{font-size:.73rem;color:#5560AA;background:#E8ECFF;padding:.4rem .65rem;border-radius:6px;margin-top:.45rem}
+
+/* Settings */
+.ss{margin-bottom:1.15rem}
+.ss h3{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:.55rem;padding-bottom:.32rem;border-bottom:1px solid var(--border)}
+.sr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.42rem;font-size:.83rem;color:var(--text2);gap:.45rem}
+.sr input{flex:1;max-width:56%;padding:.34rem .56rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8rem;font-family:'DM Sans',sans-serif;color:var(--text)}
+.sr input:focus{outline:none;border-color:var(--blue)}
+.cat-list{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.7rem}
+.cat-row{display:flex;align-items:center;gap:.45rem;padding:.45rem .65rem;background:var(--surface2);border-radius:var(--radius-sm);border:1.5px solid var(--border)}
+.cat-swatch{width:21px;height:21px;border-radius:5px;flex-shrink:0;border:2px solid rgba(0,0,0,.1)}
+.cat-name-inp{flex:1;border:none;background:transparent;font-size:.85rem;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--text);padding:0}
+.cat-name-inp:focus{outline:none}
+.cat-color-inp{width:32px;height:25px;border:1.5px solid var(--border);border-radius:5px;cursor:pointer;padding:2px;background:#fff}
+.cat-del{background:none;border:none;cursor:pointer;color:#E24B4A;font-size:.95rem;padding:.18rem;border-radius:4px;transition:all .15s}
+.cat-del:hover{background:#FCEBEB}
+.add-cat-row{display:flex;gap:.45rem;align-items:center}
+.add-cat-row input[type="text"]{flex:1;padding:.4rem .65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.83rem;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface)}
+.add-cat-row input[type="text"]:focus{outline:none;border-color:var(--blue)}
+.add-cat-row input[type="color"]{width:34px;height:31px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;padding:2px;background:#fff}
+
+/* Settings tabs */
+.sett-tab{flex:1;padding:.38rem .7rem;border-radius:6px;border:none;cursor:pointer;font-size:.81rem;font-weight:600;font-family:'DM Sans',sans-serif;background:transparent;color:var(--text2);transition:all .15s}
+.sett-tab.active{background:var(--navy);color:#fff}
+.sett-tab:hover:not(.active){background:var(--border);color:var(--text)}
+/* Help blocks */
+.help-block{background:var(--surface2);border-radius:var(--radius-sm);padding:.7rem .9rem;margin-bottom:.5rem;font-size:.83rem;color:var(--text2);line-height:1.6}
+.help-step{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.55rem;font-size:.83rem;color:var(--text2)}
+.help-step-n{background:var(--navy);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:.1rem}
+.help-tip{padding:.35rem 0;font-size:.82rem;color:var(--text2);border-bottom:1px solid var(--border);line-height:1.5}
+.help-tip:last-child{border-bottom:none}
+.cp{background:linear-gradient(135deg,#EBF3FB,#F0EEFF);border:1.5px solid #C0D4F0;border-radius:var(--radius);padding:.95rem;margin-bottom:.82rem}
+.cp h3{font-size:.81rem;font-weight:700;color:var(--navy);margin-bottom:.32rem}
+.cp p{font-size:.76rem;color:var(--text2);margin-bottom:.45rem;line-height:1.5}
+.cp textarea{width:100%;padding:.42rem;border:1.5px solid #C0D4F0;border-radius:8px;font-family:'DM Mono',monospace;font-size:.74rem;height:74px;resize:vertical;color:var(--text);background:#fff}
+.cp-hint{background:#E8F4FF;border:1px solid #B0D4F0;border-radius:8px;padding:.6rem .82rem;margin-bottom:.7rem;font-size:.77rem;color:#1a4a7a;line-height:1.55}
+.cp-hint strong{display:block;margin-bottom:.22rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px}
+.cp-prompt-box{background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:.65rem .85rem;margin-bottom:.7rem}
+.cp-prompt-box .lbl{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:.32rem}
+.cp-prompt-box .prompt-txt{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--text);line-height:1.55}
+
+/* Toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy);color:#fff;padding:.68rem 1.05rem;border-radius:var(--radius);font-size:.83rem;font-weight:500;z-index:400;box-shadow:var(--shadow2);animation:sup .3s cubic-bezier(.4,0,.2,1);max-width:300px;font-family:'DM Sans',sans-serif}
+@keyframes sup{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Print */
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+  .print-sheet {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+  .no-print { display: none !important; }
+  @page { margin: 0.5cm; size: A4 portrait; }
+}
+.print-sheet { font-family: Arial, sans-serif; max-width: 794px; margin: 0 auto; background: #fff; }
+.print-header { background: #1F3864; color: #fff; padding: 1.2rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+.print-header h1 { font-size: 1.4rem; font-weight: 700; }
+.print-header .ph-meta { font-size: .8rem; opacity: .75; text-align: right; }
+.print-cat-band { height: 6px; }
+.print-body { padding: 1.5rem; }
+.print-title { font-size: 1.5rem; font-weight: 700; color: #1F3864; margin-bottom: 1rem; border-bottom: 2px solid #E4E7F0; padding-bottom: .75rem; }
+.print-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem 1.5rem; margin-bottom: 1rem; }
+.print-field { display: flex; flex-direction: column; }
+.print-field-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #9AA0BC; margin-bottom: .18rem; }
+.print-field-value { font-size: .9rem; color: #1A1D2E; font-weight: 500; }
+.print-section { margin-bottom: 1rem; }
+.print-section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #5A6080; margin-bottom: .5rem; border-bottom: 1px solid #E4E7F0; padding-bottom: .25rem; }
+.print-cl-item { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; font-size: .88rem; color: #1A1D2E; border-bottom: 1px solid #F0F2F8; }
+.print-cl-box { width: 14px; height: 14px; border: 2px solid #CDD2E8; border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #5BAD6F; }
+.print-notes { font-size: .88rem; color: #5A6080; line-height: 1.6; font-style: italic; }
+.print-footer { margin-top: 2rem; padding-top: .75rem; border-top: 1px solid #E4E7F0; font-size: .72rem; color: #9AA0BC; display: flex; justify-content: space-between; }
+.print-summary-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.print-summary-table th { background: #1F3864; color: #fff; padding: .45rem .6rem; text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; }
+.print-summary-table td { padding: .4rem .6rem; border-bottom: 1px solid #E4E7F0; color: #1A1D2E; }
+.print-summary-table tr:nth-child(even) td { background: #F7F8FC; }
+
+@media(max-width:500px){
+  .tc{grid-template-columns:auto 1fr}.t-acts{flex-direction:row;grid-column:1/-1}
+  .f2,.f3{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(3,1fr)}
+  .rec-grid{grid-template-columns:1fr}.header{padding:.5rem .75rem}
+  .logo span{display:none}
+  .sync-pill span:last-child{display:none}
+  .dash-pills{gap:.25rem}.dash-pill{font-size:.68rem;padding:.17rem .42rem}
+  .modal{max-height:85vh;border-radius:12px 12px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;margin:0}
+  .overlay{align-items:flex-end;padding:0}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Login -->
+<div id="login-screen" style="display:none;">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="logo-big">📋</div>
+    <h2>TaskMaster Pro</h2>
+    <p>Sign in to access your tasks across all devices.</p>
+      <div style="background:#EBF3FB;border:1px solid #B0D4F0;border-radius:8px;padding:.6rem .85rem;margin-bottom:.5rem;font-size:.8rem;color:#1a4a7a;line-height:1.55;"><strong>New user?</strong> Check your email for an invite link first. Click it to confirm your account, then sign in here.</div>
+    <div class="auth-err" id="login-err"></div>
+    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="your@gmail.com" /></div>
+    <div class="fr">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()" />
+      <div class="auth-forgot"><a onclick="showScreen('forgot-screen')">Forgot password?</a></div>
+    </div>
+    <button class="auth-btn" onclick="doLogin()">Sign In</button>
+    <div class="auth-switch">Don't have an account? <a onclick="showScreen('register-screen')">Create one</a></div>
+  </div></div>
+</div>
+
+<!-- Register -->
+<div id="register-screen" style="display:none;">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="logo-big">📋</div>
+    <h2>Create Account</h2>
+    <p>One account works on all your devices.</p>
+    <div class="auth-err" id="reg-err"></div>
+    <div class="fr"><label>Email</label><input type="email" id="reg-email" placeholder="your@gmail.com" /></div>
+    <div class="fr"><label>Password</label><input type="password" id="reg-pass" placeholder="Min 6 characters" /></div>
+    <div class="fr"><label>Confirm Password</label><input type="password" id="reg-pass2" onkeydown="if(event.key==='Enter')doRegister()" /></div>
+    <button class="auth-btn" onclick="doRegister()">Create Account</button>
+    <div class="auth-switch">Already have an account? <a onclick="showScreen('login-screen')">Sign in</a></div>
+  </div></div>
+</div>
+
+<!-- Forgot -->
+<div id="forgot-screen" style="display:none;">
+  <div class="auth-wrap"><div class="auth-card">
+    <div class="logo-big">🔑</div>
+    <h2>Reset Password</h2>
+    <p>Enter your email and we'll send a reset link.</p>
+    <div class="auth-err" id="forgot-err"></div>
+    <div class="fr"><label>Email</label><input type="email" id="forgot-email" onkeydown="if(event.key==='Enter')doForgot()" /></div>
+    <button class="auth-btn" onclick="doForgot()">Send Reset Link</button>
+    <div class="auth-switch"><a onclick="showScreen('login-screen')">← Back to sign in</a></div>
+  </div></div>
+</div>
+
+<!-- Main -->
+<div id="main-app" style="display:none;">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">📋 TaskMaster <span id="hlabel"></span></div>
+      <div class="sync-pill"><div class="sync-dot" id="sdot"></div><span id="stxt">Ready</span></div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="showView('calendar')" id="btn-cal" title="Calendar">📅</button>
+      <button class="btn btn-ghost btn-sm" onclick="printSummary()" title="Print list">🖨</button>
+      <button class="btn btn-ghost btn-sm" onclick="openSettings()" title="Settings">⚙️</button>
+      <button class="btn btn-white btn-sm" onclick="openAdd()">+ Add</button>
+      <button class="btn btn-ghost btn-sm" onclick="doSignOut()" title="Sign out">↩</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Dashboard -->
+    <div class="dash-bar" onclick="toggleDash()">
+      <div class="dash-pills">
+        <span class="dash-pill dp-tt" onclick="event.stopPropagation();pillFilter('active')" id="dp0">📋 <span id="ds0">0</span> Active</span>
+        <span class="dash-pill dp-ov" onclick="event.stopPropagation();pillFilter('overdue')" id="dp1">⚠️ <span id="ds1">0</span> Overdue</span>
+        <span class="dash-pill dp-sn" onclick="event.stopPropagation();pillFilter('soon')" id="dp2">📅 <span id="ds2">0</span> Due Soon</span>
+        <span class="dash-pill dp-ip" onclick="event.stopPropagation();pillFilter('inprogress')" id="dp3">🔄 <span id="ds3">0</span> In Progress</span>
+        <span class="dash-pill dp-dn" onclick="event.stopPropagation();pillFilter('complete')" id="dp4">✅ <span id="ds4">0</span> Done Today</span>
+        <span class="dash-pill dp-rc" onclick="event.stopPropagation();pillFilter('recurring')" id="dp5">🔁 <span id="ds5">0</span> Recurring</span>
+      </div>
+      <div class="dash-chevron" id="dash-chevron">▼</div>
+    </div>
+    <div class="dash-expanded" id="dash-expanded">
+      <div class="stats-row">
+        <div class="stat s-tt"><div class="stat-n" id="s0">0</div><div class="stat-l">Active</div></div>
+        <div class="stat s-ov"><div class="stat-n" id="s1">0</div><div class="stat-l">Overdue</div></div>
+        <div class="stat s-sn"><div class="stat-n" id="s2">0</div><div class="stat-l">Due 7 Days</div></div>
+        <div class="stat s-ip"><div class="stat-n" id="s3">0</div><div class="stat-l">In Progress</div></div>
+        <div class="stat s-dn"><div class="stat-n" id="s4">0</div><div class="stat-l">Done Today</div></div>
+        <div class="stat s-rc"><div class="stat-n" id="s5">0</div><div class="stat-l">Recurring</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card"><h3>By Category</h3><div id="chart-cat"></div></div>
+        <div class="chart-card"><h3>By Priority</h3>
+          <div class="pie-wrap"><svg id="pie" width="90" height="90" viewBox="0 0 100 100"></svg><div class="pie-leg" id="pie-leg"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task list view -->
+    <div id="view-tasks">
+      <div class="tabs" id="tabs" style="margin-top:1rem;"></div>
+      <div class="toolbar">
+        <input type="text" id="srch" placeholder="🔍 Search..." oninput="render()" />
+        <select id="fp" onchange="render()"><option value="">All Priorities</option><option>High</option><option>Medium</option><option>Low</option></select>
+        <select id="fs" onchange="render()">
+          <option value="">All Statuses</option><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option>
+          <option value="__overdue__">Overdue</option><option value="__soon__">Due Soon</option><option value="__recurring__">Recurring</option>
+          <option value="__unassigned__">Unassigned</option>
+        </select>
+        <select id="fo" onchange="render()"><option value="due">Due Date</option><option value="priority">Priority</option><option value="name">Name</option><option value="pct">% Complete</option></select>
+        <label class="toggle-label"><input type="checkbox" id="shd" onchange="render()" /> Show completed</label>
+      </div>
+      <div id="active-filter-bar" style="display:none;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:.78rem;color:var(--text2);">Filtered:</span>
+        <span id="active-filter-label" style="font-size:.78rem;font-weight:600;color:var(--navy);"></span>
+        <button class="btn btn-outline btn-sm" onclick="clearPillFilter()">✕ Clear</button>
+      </div>
+      <div class="task-list" id="tlist"></div>
+    </div>
+
+    <!-- Calendar view -->
+    <div id="view-calendar" style="display:none;">
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="btn btn-outline btn-sm" onclick="showView('tasks')" title="Back to tasks">✕ Close</button>
+          <button class="btn btn-outline btn-sm" onclick="calNav(-1)">◀</button>
+          <div class="cal-title" id="cal-title"></div>
+          <button class="btn btn-outline btn-sm" onclick="calNav(1)">▶</button>
+          <button class="btn btn-outline btn-sm" onclick="calToday()">Today</button>
+        </div>
+        <div class="cal-view-toggle">
+          <button class="cal-view-btn active" id="cal-btn-week" onclick="setCalView('week')">Week</button>
+          <button class="cal-view-btn" id="cal-btn-month" onclick="setCalView('month')">Month</button>
+        </div>
+      </div>
+      <div id="cal-grid-wrap"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Print area -->
+<div id="print-area" style="display:none;"></div>
+
+<!-- Task Modal -->
+<div id="tmod" class="overlay" style="display:none;">
+  <div class="modal">
+    <h2 id="mtitle">Add New Task</h2>
+    <div class="fr"><label>Task Name *</label><input type="text" id="fn" placeholder="What needs to be done?" /></div>
+    <div class="f2">
+      <div class="fr"><label>Category</label><select id="fc"></select></div>
+      <div class="fr"><label>Priority</label><select id="fpr"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>Due Date</label><input type="date" id="fd" /></div>
+      <div class="fr"><label>Due Time (optional)</label><input type="time" id="ft" /></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>Status</label><select id="fst"><option>Not Started</option><option>In Progress</option><option>On Hold</option><option>Complete</option></select></div>
+      <div class="fr"><label>Assigned To</label><select id="fas"><option value="">Unassigned</option></select></div>
+    </div>
+    <div class="f2">
+      <div class="fr"><label>% Complete</label><input type="number" id="fpc" min="0" max="100" value="0" /></div>
+      <div class="fr"><label>Email Reminder</label><select id="frm"><option value="">No reminder</option><option value="1hour">1 hour before</option><option value="1day">1 day before</option><option value="3days">3 days before</option><option value="1week">1 week before</option></select></div>
+    </div>
+    <div class="fr"><label>Tags (comma separated)</label><input type="text" id="ftg" placeholder="e.g. urgent, client" /></div>
+    <div class="fr">
+      <label>Checklist</label>
+      <div class="cl-editor" id="cl-editor"></div>
+      <div class="cl-add-row">
+        <input type="text" id="cl-new-item" placeholder="Add item..." onkeydown="if(event.key==='Enter'){event.preventDefault();addClItem();}" />
+        <button class="btn btn-blue btn-sm" onclick="addClItem()">+ Add</button>
+      </div>
+    </div>
+    <div class="rec-box">
+      <label class="rec-toggle"><input type="checkbox" id="fron" onchange="togRec()" /> 🔁 Recurring task</label>
+      <div class="rec-body" id="rbody">
+        <div class="rec-grid">
+          <div class="fr"><label>Repeat every</label>
+            <div style="display:flex;gap:.38rem;">
+              <input type="number" id="frn" min="1" value="1" style="width:58px;flex-shrink:0;" />
+              <select id="fru" style="flex:1;"><option value="days">Days</option><option value="weeks">Weeks</option><option value="months">Months</option></select>
+            </div>
+          </div>
+          <div class="fr"><label>Next date from</label><select id="frf"><option value="due">Original due date</option><option value="completion">Completion date</option></select></div>
+        </div>
+        <div class="fr"><label>Stop after (optional)</label><input type="date" id="fre" /></div>
+        <div class="rec-hint">When you complete this task the next occurrence is created automatically.</div>
+      </div>
+    </div>
+    <div class="fr">
+      <label>Attachments</label>
+      <div class="upload-area" onclick="document.getElementById('file-input').click()">
+        <div style="font-size:1.4rem;">📎</div>
+        <p>Tap to attach a file (PDF, Word, images)</p>
+      </div>
+      <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.txt,.xlsx,.xls" onchange="handleFileSelect(event)" />
+      <div id="att-preview" style="margin-top:.45rem;display:flex;flex-wrap:wrap;gap:.3rem;"></div>
+    </div>
+    <div class="fr"><label>Notes</label><textarea id="fno" placeholder="Additional details..."></textarea></div>
+    <!-- Audit dates — shown when editing an existing task -->
+    <div id="audit-dates" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:.6rem .8rem;margin-bottom:.8rem;border:1px solid var(--border);">
+      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:.45rem;">Audit Trail</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem;">
+        <div><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Created</div><div style="font-size:.78rem;color:var(--text2);font-family:'DM Mono',monospace;" id="audit-created">—</div></div>
+        <div><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Last Updated</div><div style="font-size:.78rem;color:var(--text2);font-family:'DM Mono',monospace;" id="audit-updated">—</div></div>
+        <div id="audit-completed-wrap" style="display:none;grid-column:1/-1;"><div style="font-size:.67rem;color:var(--text3);margin-bottom:.1rem;">Completed</div><div style="font-size:.78rem;color:#3a6010;font-family:'DM Mono',monospace;" id="audit-completed">—</div></div>
+      </div>
+      <!-- Activity log -->
+      <div id="activity-log" style="margin-top:.6rem;border-top:1px solid var(--border);padding-top:.5rem;display:none;">
+        <div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:.35rem;">Activity</div>
+        <div id="activity-log-items"></div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="cmTask()">Cancel</button>
+      <button class="btn btn-outline btn-sm" onclick="printTask(null, true)" style="margin-right:auto;">🖨 Print</button>
+      <button class="btn btn-navy" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="smod" class="overlay" style="display:none;">
+  <div class="modal">
+    <h2>⚙ Settings</h2>
+
+    <!-- Settings tabs -->
+    <div style="display:flex;gap:.35rem;background:var(--surface2);padding:.3rem;border-radius:var(--radius-sm);margin-bottom:1.2rem;">
+      <button class="sett-tab active" id="stab-settings" onclick="switchSettTab('settings')">⚙ Settings</button>
+      <button class="sett-tab" id="stab-help" onclick="switchSettTab('help')">❓ Help &amp; Setup</button>
+    </div>
+
+    <!-- Tab 1: Settings -->
+    <div id="spanel-settings">
+      <div class="ss"><h3>Categories</h3>
+        <div class="cat-list" id="cat-list"></div>
+        <div class="add-cat-row">
+          <input type="text" id="new-cat-name" placeholder="New category name..." />
+          <input type="color" id="new-cat-color" value="#4F86C6" />
+          <button class="btn btn-blue btn-sm" onclick="addCat()">+ Add</button>
+        </div>
+      </div>
+      <div class="ss"><h3>Account</h3>
+        <div class="sr"><span id="acct-email" style="font-weight:600;color:var(--text);"></span><button class="btn btn-outline btn-sm" onclick="doSignOut()">Sign Out</button></div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:.3rem;" id="role-label"></div>
+      </div>
+      <div class="ss" id="team-section">
+        <h3>👥 Team</h3>
+        <div id="team-member-list" style="margin-bottom:.75rem;"></div>
+        <div class="add-cat-row">
+          <input type="email" id="invite-email" placeholder="teammate@email.com" style="flex:1;padding:.4rem .65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.83rem;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);" />
+          <button class="btn btn-blue btn-sm" onclick="doInvite()">+ Invite</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--text3);margin-top:.5rem;">Invited teammates will receive an email with a link to create their account. They'll only see tasks assigned to them.</p>
+      </div>
+      <div class="ss"><h3>Data</h3>
+        <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="exportData()">Export JSON</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('ifile').click()">Import JSON</button>
+          <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)" />
+          <button class="btn btn-red btn-sm" onclick="clearAll()">Clear All</button>
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-outline" onclick="cm('smod')">Close</button>
+      </div>
+    </div>
+
+    <!-- Tab 2: Help & Setup -->
+    <div id="spanel-help" style="display:none;">
+
+      <!-- Getting Started -->
+      <div class="ss">
+        <h3>👋 Getting Started</h3>
+        <div class="help-block">
+          <p>Welcome to TaskMaster! Here's what to do first:</p>
+          <ol style="padding-left:1.2rem;font-size:.83rem;color:var(--text2);line-height:2;">
+            <li>Enter your <strong>email address</strong> below in Email Reminders to receive task reminders and weekly backups</li>
+            <li>Customise your <strong>Categories</strong> in Settings to match your workflow</li>
+            <li>On Android — tap <strong>Add to Home Screen</strong> in Chrome to install the app</li>
+            <li>Use the <strong>Claude Voice Import</strong> shortcut to add tasks hands-free</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- EmailJS Setup -->
+      <div class="ss">
+        <h3>📧 Email Reminders Setup</h3>
+        <div class="help-block">
+          <p>TaskMaster can send you task reminders and a weekly backup email. Just enter your email address below — everything else is already configured.</p>
+        </div>
+        <div class="sr" style="margin-top:.75rem;"><span>Your Email</span><input type="email" id="sem" placeholder="where reminders are sent" /></div>
+        <div style="display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap;">
+          <button class="btn btn-navy btn-sm" onclick="saveSettings()">💾 Save</button>
+          <button class="btn btn-green btn-sm" onclick="testEmail()">📧 Send Test Email</button>
+        </div>
+      </div>
+
+      <!-- Claude Voice Import -->
+      <div class="ss">
+        <h3>🎤 Claude Voice Import</h3>
+        <div class="help-block">
+          <p>Add tasks hands-free using Claude on your phone. Copy the prompt below and paste it into any Claude conversation once. Then just say your task out loud and Claude will give you a link that opens TaskMaster pre-filled.</p>
+          <p style="margin-top:.5rem;font-size:.78rem;color:var(--text3);">Example: <em>"Add a task: Pay rates by Friday, high priority, Finance, remind 1 day before"</em></p>
+        </div>
+        <div class="cp-prompt-box" style="margin-top:.65rem;">
+          <div class="lbl">Copy this prompt into Claude:</div>
+          <div class="prompt-txt" id="claude-context-prompt"></div>
+          <button onclick="copyPrompt()" id="copy-prompt-btn" class="btn btn-navy btn-sm" style="margin-top:.55rem;">📋 Copy Prompt</button>
+        </div>
+      </div>
+
+      <!-- Natural Language Input -->
+      <div class="ss">
+        <h3>✨ Natural Language Task Input</h3>
+        <div class="help-block">
+          <p>Type a task in plain English and Claude will automatically fill in the due date, priority, category and reminder. No dropdowns needed.</p>
+          <p style="margin-top:.4rem;font-size:.78rem;color:var(--text3);">Example: <em>"Call dentist next Tuesday morning Work remind 1 day before"</em></p>
+        </div>
+        <textarea id="nl-input" placeholder='Type your task in plain English...' style="width:100%;margin-top:.65rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.86rem;font-family:DM Sans,sans-serif;color:var(--text);min-height:70px;resize:vertical;"></textarea>
+        <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" id="nl-btn" onclick="nlImport()">✨ Parse &amp; Add Task</button>
+      </div>
+
+      <!-- JSON Import -->
+      <div class="ss">
+        <h3>📋 Paste JSON from Claude</h3>
+        <div class="help-block">
+          <p>If Claude gives you a JSON task object, paste it here to import it directly.</p>
+        </div>
+        <textarea id="cjson" placeholder='{"name":"Task","category":"Personal","priority":"Medium","due":"2025-05-01","reminder":"1day"}' style="width:100%;margin-top:.65rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-family:'DM Mono',monospace;color:var(--text);min-height:60px;resize:vertical;"></textarea>
+        <button class="btn btn-navy btn-sm" style="margin-top:.45rem;" onclick="claudeImport()">Import Task</button>
+      </div>
+
+      <!-- Tips -->
+      <div class="ss">
+        <h3>💡 Tips &amp; Shortcuts</h3>
+        <div class="help-block">
+          <div class="help-tip">📤 <strong>Share any task</strong> — tap the share icon on a task card to send via WhatsApp, SMS or email</div>
+          <div class="help-tip">📅 <strong>Calendar</strong> — tap any day to add a task with that date pre-filled</div>
+          <div class="help-tip">🖨️ <strong>Print</strong> — tap the printer icon on a task for a full job sheet, or the header print button for a summary list</div>
+          <div class="help-tip">⚠️ <strong>Overdue</strong> — tap the Overdue pill at the top to instantly filter to overdue tasks only</div>
+          <div class="help-tip">🔁 <strong>Recurring tasks</strong> — when you complete a recurring task, the next occurrence is created automatically</div>
+          <div class="help-tip">📧 <strong>Weekly backup</strong> — TaskMaster emails you a full backup every 7 days when you open the app (requires EmailJS setup)</div>
+        </div>
+      </div>
+
+      <div class="modal-btns">
+        <button class="btn btn-outline" onclick="cm('smod')">Close</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── Config ────────────────────────────────────────────────────────────
+// ── WHY: Credentials hardcoded here ──────────────────────────────────
+// Previously the app showed a setup screen asking for these values on every
+// new device. That was frustrating for non-technical users. These keys are
+// safe to expose publicly because:
+// - Supabase anon key: Row Level Security (RLS) ensures users only ever
+//   read/write their own data regardless of who has the key
+// - EmailJS keys: worst case someone hits the 200/month free limit. Not a
+//   data breach. Acceptable tradeoff for zero-setup experience.
+// - Each user only needs to enter their email address in Help & Setup.
+const SB_URL='https://yxnriotzxqeryqndyfjo.supabase.co';
+const SB_KEY='sb_publishable_VgZTgCwoLpnNU3Cb9HKWoQ_FHu4R0js';
+const STORAGE_BUCKET='task-attachments'; // Supabase Storage bucket for file attachments
+const APP_URL='https://lathjohn-me.github.io/TaskMaster/TaskMaster_Pro.html';
+
+// ── WHY: EmailJS shared account ───────────────────────────────────────
+// All users share one EmailJS account (owner's). This means new team members
+// only need to enter their email address — no EmailJS account setup needed.
+// Free tier is 200/month which is plenty for a small team.
+// If usage grows, upgrade the EmailJS plan rather than asking users to set up
+// their own accounts.
+const EJS_KEY='ktPVni5S7ePWHjB2a';
+const EJS_SVC='service_io8hbpi';
+const EJS_TPL='template_mkjoqy5';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Debugging session notes — April 24, 2026
+// ─────────────────────────────────────────────────────────────────────────
+// Symptom reported: "Sharon sees all of John's tasks instead of only her
+// assigned ones." Previous session misdiagnosed this as an RLS policy bug
+// and spent many rounds rewriting the policy SQL. The actual chain was:
+//
+//   1. loadFromSupabase's member query was malformed:
+//      `data->assignee_id.eq."<uuid>"` — wrong JSON operator (-> returns
+//      JSON, ->> returns text) AND wrapped the UUID in quotes. Supabase
+//      returned 400 Bad Request on every call.
+//   2. The thrown error hit the catch block, which showed "Offline" but
+//      did NOT clear the tasks array or localStorage. The app rendered
+//      whatever tm_tasks happened to hold — in Sharon's case, John's
+//      tasks cached from a prior buggy state.
+//   3. doSignOut() also did not clear localStorage, so testing by
+//      switching accounts in one browser kept leaking John's data into
+//      Sharon's session after logout.
+//   4. Once the query was fixed, a second bug surfaced: the RLS policy
+//      cast data->>'assignee_id' to UUID, but 3 tasks had assignee_id=""
+//      and 2 had assignee_id="pending_<email>" — neither valid UUIDs.
+//      Postgres 22P02 error aborted the entire query with 400.
+//
+// Fixes applied this session:
+//   - loadFromSupabase: -> to ->>, dropped quotes around UUID (~line 922)
+//   - loadFromSupabase: "keep local data on empty" safety net now owner-
+//     only so stale member cache can't mask a legitimate empty result
+//   - doSignOut: wipe all tm_* localStorage keys on signout
+//   - populateAssigneeSelect: pending invitees removed from dropdown;
+//     they can't be saved as assignee_id until they have a real user_id
+//   - loadWorkspace owner branch: silently migrates any lingering
+//     pending_<email> assignee_ids to the joined member's real UUID
+//   - RLS policy (DB side): added NULL and empty-string guards before
+//     the ::uuid cast. Also scrubbed the 3 empty-string rows and migrated
+//     the 2 pending-marker rows as one-off data fixes.
+//
+// Key takeaway for future sessions: if something like "member sees wrong
+// data" appears and RLS looks suspect, check the Network tab for 400s on
+// the tasks endpoint before touching the policy. Response body from
+// Supabase will tell you whether it's a query syntax error (fix the app)
+// or a cast error (fix the data / policy guards).
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── WHY: State stored in module-level variables ───────────────────────
+// No framework (React/Vue etc) — vanilla JS with simple module-level state.
+// Chosen because: single HTML file architecture, non-developer owner,
+// no build tools. Simple to understand and debug.
+let tasks=[],cfg={},cats=[],tab='All',eid=null;
+let sb=null,currentUser=null,realtimeSub=null;
+let pendingFiles=[],editingAttachments=[],clItems=[];
+let activePillFilter=null,calDate=new Date(),calView='week';
+
+// ── WHY: isOwner defaults to true ────────────────────────────────────
+// If workspace loading fails or is slow, we don't want the owner to be
+// accidentally locked out of their own tasks. Default to owner (full access)
+// and only downgrade to member after workspace loads confirm membership.
+let workspace=null,workspaceMembers=[],isOwner=true,userRole='owner';
+
+// pendingHealDone — heal runs once per session. See loadWorkspace owner branch.
+let pendingHealDone=false;
+
+// ── WHY: Audit category in defaults ──────────────────────────────────
+// Added for RTO training material validation workflow — tasks generated
+// from compliance audits are tagged with this category and the unit code.
+const DEFAULT_CATS=[{name:'Personal',color:'#4F86C6'},{name:'Work',color:'#C8860A'},{name:'Finance',color:'#5BAD6F'},{name:'Projects',color:'#C45FAA'},{name:'Audit',color:'#E67E22'}];
+
+// ── Boot ──────────────────────────────────────────────────────────────
+async function init(){
+  cfg=JSON.parse(localStorage.getItem('tm_cfg')||'{}');
+  cats=JSON.parse(localStorage.getItem('tm_cats')||'null')||DEFAULT_CATS;
+  // Load local tasks immediately as safety net — Supabase will update these
+  const localTasks=localStorage.getItem('tm_tasks');
+  if(localTasks){try{tasks=JSON.parse(localTasks);}catch(e){tasks=[];}}
+  sb=supabase.createClient(SB_URL,SB_KEY);
+  handleUrlParams();
+
+  // WHY visibilitychange attached here once, not in setupRealtime:
+  // Previously this listener was inside setupRealtime and re-added every
+  // time the realtime channel reconnected. Each reconnect stacked another
+  // listener, and once the channel started cycling (CLOSED → reconnect),
+  // every tab-focus fired loadFromSupabase N times instead of once.
+  // Symptom: thousands of workspace_members requests per minute.
+  // Fix: attach once at app boot, guard with currentUser check so it
+  // only fires when signed in.
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&currentUser)loadFromSupabase();
+  });
+
+  // Handle Supabase auth redirect (email confirmation, password reset)
+  // Supabase appends tokens as URL hash fragments: #access_token=xxx&type=signup
+  const hash=window.location.hash;
+  if(hash&&hash.includes('access_token')){
+    const params=new URLSearchParams(hash.replace('#',''));
+    const type=params.get('type');
+    // Let Supabase process the hash tokens
+    const {data:{session},error}=await sb.auth.getSession();
+    if(session){
+      currentUser=session.user;
+      // Clear the hash from URL
+      window.history.replaceState({},'',window.location.pathname);
+      if(type==='recovery'){
+        // Password reset — show a reset form
+        showScreen('login-screen');
+        const err=document.getElementById('login-err');
+        err.className='auth-err success';
+        err.textContent='✅ You can now sign in with your new password.';
+        err.style.display='';
+      } else {
+        // Email confirmation — go straight to app
+        showMain();
+      }
+      return;
+    }
+    if(error){
+      showScreen('login-screen');
+      const err=document.getElementById('login-err');
+      err.className='auth-err error';
+      err.textContent='Confirmation link expired. Please sign in or request a new link.';
+      err.style.display='';
+      return;
+    }
+  }
+
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){currentUser=session.user;showMain();}
+  else showScreen('login-screen');
+}
+
+function handleUrlParams(){
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('task')){window._prefill={id:'task_'+Date.now(),name:p.get('task')||'',category:p.get('category')||'Personal',priority:p.get('priority')||'Medium',due:p.get('due')||'',time:'',reminder:p.get('reminder')||'',tags:p.get('tags')?p.get('tags').split(','):[],notes:p.get('notes')||'',recur:false,checklist:[],attachments:[]};window.history.replaceState({},'',window.location.pathname);}
+}
+
+function showScreen(id){['login-screen','register-screen','forgot-screen','main-app'].forEach(s=>document.getElementById(s).style.display='none');document.getElementById(id).style.display='';}
+
+// ── Auth ──────────────────────────────────────────────────────────────
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-err');
+  const btn=document.querySelector('#login-screen .auth-btn');
+  err.style.display='none';err.className='auth-err error';
+  if(!email||!pass){err.textContent='Please enter your email and password.';err.style.display='';return;}
+  btn.textContent='Signing in…';btn.disabled=true;
+  setDS('syncing','Signing in...');
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  btn.textContent='Sign In';btn.disabled=false;
+  if(error){
+    // Give a clearer message for unconfirmed email
+    if(error.message.toLowerCase().includes('email not confirmed')||error.message.toLowerCase().includes('not confirmed')){
+      err.className='auth-err success';
+      err.innerHTML='📧 <strong>Please confirm your email first.</strong><br><br>Check your inbox (and spam folder) for a confirmation email from TaskMaster. Click the link in the email, then come back here to sign in.<br><br><small>Can\'t find it? Check your spam folder or contact your workspace admin to resend the invite.</small>';
+    } else {
+      err.textContent=error.message;
+    }
+    err.style.display='';setDS('','');return;
+  }
+  currentUser=data.user;showMain();
+}
+
+async function doRegister(){
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const pass2=document.getElementById('reg-pass2').value;
+  const err=document.getElementById('reg-err');
+  const btn=document.querySelector('#register-screen .auth-btn');
+  err.style.display='none';err.className='auth-err error';
+  if(!email||!pass){err.textContent='Please fill in all fields.';err.style.display='';return;}
+  if(pass!==pass2){err.textContent='Passwords do not match.';err.style.display='';return;}
+  if(pass.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='';return;}
+  // Show loading state while Supabase processes and sends confirmation email
+  btn.textContent='Creating account…';btn.disabled=true;
+  err.className='auth-err success';
+  err.textContent='⏳ Setting up your account and sending a confirmation email — this may take a few seconds…';
+  err.style.display='';
+  const {data,error}=await sb.auth.signUp({email,password:pass});
+  btn.textContent='Create Account';btn.disabled=false;
+  if(error){err.className='auth-err error';err.textContent=error.message;err.style.display='';return;}
+  if(data.user&&!data.session){
+    err.className='auth-err success';
+    err.innerHTML='✅ <strong>Account created!</strong><br><br>A confirmation email has been sent to <strong>'+email+'</strong>.<br><br>Please check your inbox (and spam folder), click the confirmation link, then return here to sign in.';
+    err.style.display='';return;
+  }
+  currentUser=data.user;showMain();
+}
+
+async function doForgot(){
+  const email=document.getElementById('forgot-email').value.trim();
+  const err=document.getElementById('forgot-err');
+  err.style.display='none';err.className='auth-err error';
+  if(!email){err.textContent='Please enter your email.';err.style.display='';return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});
+  if(error){err.textContent=error.message;err.style.display='';return;}
+  err.className='auth-err success';err.textContent='Reset link sent! Check your inbox.';err.style.display='';
+}
+
+async function doSignOut(){
+  if(realtimeSub){sb.removeChannel(realtimeSub);realtimeSub=null;}
+  await sb.auth.signOut();
+  // WHY clear localStorage: without this, tasks/categories/settings from the
+  // previous account would leak to the next person to log in on the same
+  // browser. The loadFromSupabase() fallback-to-local logic would then show
+  // them the old user's data whenever the network query had any hiccup.
+  // Symptom if omitted: user A signs out, user B signs in, sees user A's
+  // tasks briefly or permanently depending on whether the Supabase fetch
+  // succeeds. Clear all tm_* keys to be safe.
+  ['tm_tasks','tm_cats','tm_cfg','tm_last_backup','tm_lc'].forEach(k=>localStorage.removeItem(k));
+  currentUser=null;tasks=[];cats=DEFAULT_CATS;cfg={};
+  pendingHealDone=false;
+  showScreen('login-screen');
+}
+
+// ── Main ──────────────────────────────────────────────────────────────
+async function showMain(){
+  showScreen('main-app');
+  document.getElementById('hlabel').textContent=currentUser?currentUser.email.split('@')[0]:'';
+  updateClaudePrompt();
+  await loadFromSupabase();
+  buildTabs();dash();render();updateAssigneeFilterOptions();
+  setupRealtime();checkReminders();checkWeeklyBackup();
+  if(window._prefill){setTimeout(()=>{openAddPrefill(window._prefill);window._prefill=null;},400);}
+}
+
+function showView(v){
+  document.getElementById('view-tasks').style.display=v==='tasks'?'':'none';
+  document.getElementById('view-calendar').style.display=v==='calendar'?'':'none';
+  const calBtn=document.getElementById('btn-cal');
+  calBtn.style.background=v==='calendar'?'rgba(255,255,255,0.3)':'';
+  calBtn.onclick=v==='calendar'?function(){showView('tasks');}:function(){showView('calendar');};
+  if(v==='calendar')renderCal();
+}
+
+// ── Real-time ─────────────────────────────────────────────────────────
+// ── WHY: Real-time subscription with auto-reconnect ──────────────────
+// Supabase real-time pushes changes to all open devices instantly.
+// Without this, changes on desktop only appear on mobile after a manual refresh.
+// The subscription can silently drop (phone sleep, network change) — so we
+// auto-reconnect after 3 seconds on any disconnection.
+// visibilitychange event reloads data when app comes back to foreground
+// (e.g. you switch from another app back to TaskMaster on Android).
+function setupRealtime(){
+  if(realtimeSub){sb.removeChannel(realtimeSub);}
+  const handleTaskChange=async(payload)=>{
+    if(payload.eventType==='INSERT'||payload.eventType==='UPDATE'){
+      const t={...payload.new.data,id:payload.new.id,updated:payload.new.updated_at};
+      // For members — only show if assigned to them or their own task
+      if(!isOwner&&t.user_id!==currentUser.id&&t.assignee_id!==currentUser.id)return;
+      const idx=tasks.findIndex(x=>x.id===t.id);
+      if(idx>-1)tasks[idx]=t;else tasks.push(t);
+    }else if(payload.eventType==='DELETE'){tasks=tasks.filter(x=>x.id!==payload.old.id);}
+    localStorage.setItem('tm_tasks',JSON.stringify(tasks));dash();render();
+    setDS('on','Live');
+  };
+  realtimeSub=sb.channel('tasks-rt')
+    // WHY this filter: Supabase realtime only supports simple equality on
+    // top-level columns — it can't express "user_id=me OR assignee_id=me".
+    // Tried removing the filter entirely to let members get events for tasks
+    // assigned to them, but that caused the subscription to drop repeatedly
+    // (symptom: Live → Reconnecting loop). Restored the original filter.
+    // Trade-off: members won't get push-updates for new assignments, but the
+    // visibilitychange handler (attached once at boot in init()) covers it
+    // by reloading when the tab becomes visible.
+    .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.${currentUser.id}`},handleTaskChange)
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){setDS('on','Live');}
+      else if(status==='CLOSED'||status==='CHANNEL_ERROR'){
+        setDS('syncing','Reconnecting...');
+        setTimeout(()=>setupRealtime(),3000);
+      }
+    });
+}
+
+// ── Supabase ──────────────────────────────────────────────────────────
+// ── WHY: Load strategy — local first, then Supabase ──────────────────
+// Early bug: if Supabase returned an empty array (slow connection or brief
+// outage), the app would wipe ALL tasks from localStorage. Lost real data.
+// Fix: load localStorage immediately on boot so tasks always show.
+// Then Supabase loads and updates — but NEVER overwrites with empty.
+// If Supabase returns 0 tasks but local has tasks → keep local and warn.
+// This makes the app resilient to connectivity issues.
+async function loadFromSupabase(){
+  if(!sb||!currentUser)return;
+  setDS('syncing','Loading...');
+  try{
+    // Load workspace and determine role
+    await loadWorkspace();
+
+    // Load tasks — owner sees all, members see only assigned tasks
+    let taskQuery=sb.from('tasks').select('id,data,updated_at');
+    if(isOwner){
+      taskQuery=taskQuery.eq('user_id',currentUser.id);
+    } else {
+      // Member — load own tasks + tasks assigned to me.
+      // WHY ->> not ->: ->> extracts JSON value as text; -> returns JSON which can't
+      // be compared with .eq. to a plain UUID string. Also no quotes around the UUID
+      // — with ->> the value is raw text, wrapping it in "..." would compare to a
+      // literal quoted string and never match. Supabase returns 400 if either is wrong.
+      taskQuery=taskQuery.or(`user_id.eq.${currentUser.id},data->>assignee_id.eq.${currentUser.id}`);
+    }
+    const {data:rows,error}=await taskQuery;
+    if(error)throw error;
+    if(rows!==null&&rows!==undefined){
+      const remoteTasks=rows.map(r=>({...r.data,id:r.id,updated:r.updated_at}));
+      // WHY isOwner guard: the "keep local data" safety net was designed for the
+      // owner — so a transient Supabase error doesn't wipe their tasks. For members,
+      // an empty result is legitimate (no tasks assigned to them), and trusting
+      // stale localStorage would let previously-cached tasks from buggy states
+      // persist. Members always trust Supabase.
+      if(isOwner&&remoteTasks.length===0&&tasks.length>0){
+        toast('Warning: Supabase returned no tasks — keeping local data. Check connection.');
+        setDS('','Check connection');return;
+      }
+      tasks=remoteTasks;
+      localStorage.setItem('tm_tasks',JSON.stringify(tasks));
+    }
+    const {data:catRow}=await sb.from('categories').select('data').eq('user_id',currentUser.id).single();
+    if(catRow&&catRow.data){cats=catRow.data;localStorage.setItem('tm_cats',JSON.stringify(cats));}
+    const {data:settRow}=await sb.from('user_settings').select('data').eq('user_id',currentUser.id).single();
+    if(settRow&&settRow.data){cfg={...cfg,...settRow.data};localStorage.setItem('tm_cfg',JSON.stringify(cfg));}
+    setDS('on','Synced');
+  }catch(e){
+    setDS('','Offline');
+    toast('Could not reach server — showing local data. Changes will sync when reconnected.');
+  }
+}
+
+// ── WHY: Member check before owner check ─────────────────────────────
+// Must check workspace_members first. If we checked workspaces (owner) first
+// and the invited user happened to also own a workspace, they'd be treated
+// as owner of their own workspace rather than member of yours.
+// Also uses maybeSingle() not single() — single() throws an error when no
+// row exists, maybeSingle() returns null gracefully.
+async function loadWorkspace(){
+  if(!sb||!currentUser)return;
+  try{
+    // First check if user is a member of someone else's workspace
+    // (check this first so invited users aren't treated as owners)
+    const {data:membership}=await sb.from('workspace_members')
+      .select('*,workspaces(*)')
+      .eq('invited_email',currentUser.email)
+      .maybeSingle();
+
+    if(membership){
+      // Link user_id if not yet linked (first login after invite)
+      if(!membership.user_id){
+        await sb.from('workspace_members').update({user_id:currentUser.id,joined_at:new Date().toISOString()}).eq('invited_email',currentUser.email);
+      }
+      workspace=membership.workspaces;isOwner=false;userRole='member';
+      workspaceMembers=[];
+      return;
+    }
+
+    // Check if user owns a workspace
+    const {data:ownedWs}=await sb.from('workspaces')
+      .select('*')
+      .eq('owner_id',currentUser.id)
+      .maybeSingle();
+
+    if(ownedWs){
+      workspace=ownedWs;isOwner=true;userRole='owner';
+      const {data:members}=await sb.from('workspace_members').select('*').eq('workspace_id',workspace.id);
+      workspaceMembers=members||[];
+      // WHY heal pending assignee_ids here (once per session):
+      // If owner assigned a task to someone before they joined (bug fixed in
+      // populateAssigneeSelect but already-saved tasks remain), data.assignee_id
+      // is "pending_<email>" instead of a UUID. That breaks the RLS UUID cast
+      // and 400s the tasks query for the joined member. Members can't fix it
+      // themselves — RLS blocks their update. Owner runs it silently on load.
+      // Gated by pendingHealDone flag so it only runs on the first workspace
+      // load per session — otherwise every visibilitychange / realtime reload
+      // would re-scan every owned task for every member, which is pointless
+      // and spammy.
+      if(!pendingHealDone){
+        pendingHealDone=true;
+        for(const m of workspaceMembers){
+          if(!m.user_id||!m.invited_email)continue;
+          const pendingMarker='pending_'+m.invited_email;
+          const {data:ownedTasks}=await sb.from('tasks').select('id,data').eq('user_id',currentUser.id);
+          if(!ownedTasks)continue;
+          for(const row of ownedTasks){
+            if(row.data&&row.data.assignee_id===pendingMarker){
+              const newData={...row.data,assignee_id:m.user_id};
+              await sb.from('tasks').update({data:newData,updated_at:new Date().toISOString()}).eq('id',row.id);
+            }
+          }
+        }
+      }
+    } else {
+      // No workspace yet — user is owner by default, workspace created on first invite
+      isOwner=true;userRole='owner';workspaceMembers=[];
+    }
+  }catch(e){
+    // On error default to owner so user isn't locked out
+    isOwner=true;userRole='owner';
+  }
+}
+
+async function createWorkspace(){
+  if(!sb||!currentUser||workspace)return;
+  const {data,error}=await sb.from('workspaces').insert({name:'My Workspace',owner_id:currentUser.id}).select().single();
+  if(!error&&data){workspace=data;workspaceMembers=[];}
+  return data;
+}
+
+async function inviteMember(email){
+  if(!sb||!currentUser)return;
+  if(!workspace)await createWorkspace();
+  if(!workspace)return;
+  // Add pending invite
+  const {error}=await sb.from('workspace_members').upsert({workspace_id:workspace.id,invited_email:email.toLowerCase(),role:'member'},{onConflict:'workspace_id,invited_email'});
+  if(error){toast('Invite failed: '+error.message);return;}
+  workspaceMembers=[...workspaceMembers.filter(m=>m.invited_email!==email.toLowerCase()),{workspace_id:workspace.id,invited_email:email.toLowerCase(),role:'member',user_id:null}];
+  // Send invite email via EmailJS
+  if(cfg.email){
+    const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+    s.onload=()=>{
+      emailjs.init(EJS_KEY);
+      emailjs.send(EJS_SVC,EJS_TPL,{
+        to_email:email,
+        subject:'You\'ve been invited to TaskMaster',
+        message:`Hi,\n\nYou've been invited to join a TaskMaster workspace.\n\nClick this link to create your account and get started:\n${APP_URL}\n\nSign up using this email address (${email}) and you'll be connected automatically.\n\n— TaskMaster`
+      }).then(()=>toast(`Invite sent to ${email} ✓`)).catch(()=>toast(`Invite saved — email notification failed.`));
+    };
+    document.head.appendChild(s);
+  } else {
+    toast(`${email} added — they can sign up at the app URL`);
+  }
+}
+
+async function removeMember(email){
+  if(!sb||!workspace)return;
+  await sb.from('workspace_members').delete().eq('workspace_id',workspace.id).eq('invited_email',email);
+  workspaceMembers=workspaceMembers.filter(m=>m.invited_email!==email);
+  toast(`${email} removed from workspace`);
+  renderTeamSettings();
+}
+
+// Log activity on a task
+async function logActivity(taskId,action,detail=''){
+  if(!sb||!currentUser)return;
+  try{
+    await sb.from('activity_log').insert({task_id:taskId,user_id:currentUser.id,user_email:currentUser.email,action,detail});
+  }catch(e){}
+}
+
+// Load activity log for a task
+async function loadActivityLog(taskId){
+  if(!sb)return[];
+  try{
+    const {data}=await sb.from('activity_log').select('*').eq('task_id',taskId).order('created_at',{ascending:false}).limit(20);
+    return data||[];
+  }catch(e){return[];}
+}
+
+// ── WHY: upsert individual tasks, never bulk-write ───────────────────
+// Early version (Google Drive) saved ALL tasks as one JSON file.
+// If two devices were open simultaneously, last save won overwrote the other.
+// Supabase upsert by ID = each task is its own database row.
+// Concurrent saves on different tasks from different devices = no conflict.
+// Only ever call this for ONE task at a time.
+async function upsertTask(t){
+  if(!sb||!currentUser)return;
+  setDS('syncing','Saving...');
+  try{
+    if(isOwner){
+      // Owner can update the full row including user_id
+      await sb.from('tasks').upsert({id:t.id,user_id:currentUser.id,data:t,updated_at:new Date().toISOString()},{onConflict:'id'});
+    } else {
+      // Member can ONLY update the data column, not user_id. This prevents a member from taking ownership of the task.
+      await sb.from('tasks').update({data:t,updated_at:new Date().toISOString()}).eq('id',t.id);
+    }
+    setDS('on','Saved');
+  }
+  catch(e){setDS('','Save error');toast('Save failed.');}
+}
+
+async function deleteTaskRemote(id){
+  if(!sb||!currentUser)return;
+  try{await sb.from('tasks').delete().eq('id',id).eq('user_id',currentUser.id);}catch(e){}
+}
+
+async function saveCatsRemote(){
+  if(!sb||!currentUser)return;
+  try{await sb.from('categories').upsert({user_id:currentUser.id,data:cats},{onConflict:'user_id'});}catch(e){}
+}
+
+async function saveSettingsRemote(){
+  if(!sb||!currentUser)return;
+  try{
+    await sb.from('user_settings').upsert({user_id:currentUser.id,data:{email:cfg.email}},{onConflict:'user_id'});
+  }catch(e){}
+}
+
+function setDS(t,x){document.getElementById('sdot').className='sync-dot'+(t?' '+t:'');document.getElementById('stxt').textContent=x;}
+
+// ── File attachments ──────────────────────────────────────────────────
+async function uploadFile(file,taskId){
+  const path=`${currentUser.id}/${taskId}/${Date.now()}_${file.name}`;
+  const {error}=await sb.storage.from(STORAGE_BUCKET).upload(path,file,{upsert:false,contentType:file.type});
+  if(error)throw error;
+  const {data:urlData}=sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return{name:file.name,path,url:urlData.publicUrl,size:file.size,type:file.type};
+}
+async function deleteAttachment(path){try{await sb.storage.from(STORAGE_BUCKET).remove([path]);}catch(e){}}
+
+function handleFileSelect(e){
+  Array.from(e.target.files).forEach(f=>{
+    pendingFiles.push(f);
+    const chip=document.createElement('div');chip.className='att-chip att-uploading';
+    chip.innerHTML=`📎 ${esc(f.name)} <button class="att-del" onclick="removePendingFile(${pendingFiles.length-1},this)">✕</button>`;
+    document.getElementById('att-preview').appendChild(chip);
+  });
+  e.target.value='';
+}
+function removePendingFile(idx,btn){pendingFiles[idx]=null;btn.parentElement.remove();}
+
+function renderAttPreview(atts){
+  const p=document.getElementById('att-preview');p.innerHTML='';
+  (atts||[]).forEach((a,i)=>{
+    const chip=document.createElement('a');chip.className='att-chip';chip.href=a.url;chip.target='_blank';
+    chip.innerHTML=`📎 ${esc(a.name)} <button class="att-del" onclick="event.preventDefault();removeEditAtt(${i},this)">✕</button>`;
+    p.appendChild(chip);
+  });
+}
+function removeEditAtt(idx,btn){editingAttachments[idx]._deleted=true;btn.parentElement.style.opacity='.4';btn.parentElement.style.textDecoration='line-through';}
+
+// ── Categories ────────────────────────────────────────────────────────
+function saveCats(){localStorage.setItem('tm_cats',JSON.stringify(cats));saveCatsRemote();buildTabs();updateClaudePrompt();}
+function getCat(name){return cats.find(c=>c.name===name)||{color:'#888',name};}
+
+function updateAssigneeFilterOptions(){
+  const sel=document.getElementById('fs');if(!sel)return;
+  // Remove any existing assignee options
+  Array.from(sel.options).filter(o=>o.value.startsWith('__assignee__')).forEach(o=>o.remove());
+  // Add one option per workspace member who has joined
+  const joined=workspaceMembers.filter(m=>m.user_id);
+  if(!joined.length)return;
+  const grp=document.createElement('optgroup');grp.label='Assigned to';
+  // Add self
+  const meSelf=document.createElement('option');meSelf.value='__assignee__'+currentUser.id;meSelf.textContent='→ Me';grp.appendChild(meSelf);
+  joined.filter(m=>m.user_id!==currentUser.id).forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value='__assignee__'+m.user_id;
+    opt.textContent='→ '+m.invited_email.split('@')[0];
+    grp.appendChild(opt);
+  });
+  sel.appendChild(grp);
+}
+
+function buildTabs(){
+  const c=document.getElementById('tabs');if(!c)return;c.innerHTML='';
+  const all=document.createElement('button');all.className='tab'+(tab==='All'?' active':'');all.dataset.cat='All';all.onclick=function(){selTab(this);};all.textContent='All';c.appendChild(all);
+  // Add "Assigned to me" tab for members or if workspace exists
+  if(!isOwner||workspaceMembers.length>0){
+    const atm=document.createElement('button');atm.className='tab'+(tab==='AssignedToMe'?' active':'');atm.dataset.cat='AssignedToMe';atm.onclick=function(){selTab(this);};atm.textContent='👤 Assigned to Me';
+    if(tab==='AssignedToMe'){atm.style.background='#3344AA';atm.style.color='#fff';}
+    c.appendChild(atm);
+  }
+  cats.forEach(cat=>{const btn=document.createElement('button');btn.className='tab'+(tab===cat.name?' active':'');btn.dataset.cat=cat.name;btn.onclick=function(){selTab(this);};btn.textContent=cat.name;if(tab===cat.name){btn.style.background=cat.color;btn.style.color='#fff';}c.appendChild(btn);});
+  const hist=document.createElement('button');hist.className='tab history-tab'+(tab==='History'?' active':'');hist.dataset.cat='History';hist.onclick=function(){selTab(this);};hist.textContent='🕐 History';c.appendChild(hist);
+  populateCatSelect();
+}
+function populateCatSelect(){const s=document.getElementById('fc');if(!s)return;const cur=s.value;s.innerHTML=cats.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');if(cur&&cats.find(c=>c.name===cur))s.value=cur;}
+
+function populateAssigneeSelect(currentAssigneeId){
+  const s=document.getElementById('fas');if(!s)return;
+  // Build options: self + all workspace members who have joined.
+  // WHY pending invites excluded from the dropdown:
+  // Previously, pending invites showed up as "name (invited)" with
+  // assignee_id = "pending_<email>". Selecting one would write that string
+  // to data.assignee_id — not a valid UUID. Later, the RLS policy's
+  // (data->>'assignee_id')::uuid cast would fail on those rows with
+  // PostgreSQL error 22P02, killing the entire tasks query with a 400.
+  // Until a member has actually joined and has a user_id, they can't be
+  // assigned tasks. Owner will still see them as pending in Team Settings.
+  const options=[{id:'',label:'Unassigned'},{id:currentUser.id,label:'Me ('+currentUser.email.split('@')[0]+')'}];
+  workspaceMembers.filter(m=>m.user_id&&m.user_id!==currentUser.id).forEach(m=>{
+    options.push({id:m.user_id,label:m.invited_email.split('@')[0]+' ('+m.invited_email+')'});
+  });
+  s.innerHTML=options.map(o=>`<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('');
+  if(currentAssigneeId)s.value=currentAssigneeId;
+}
+
+// ── WHY: Permission enforcement in edit modal ─────────────────────────
+// Members can only edit status, checklist and notes on tasks assigned to them
+// by the owner. They cannot change task name, category, priority, due date etc.
+// This keeps the owner in control of task definitions while giving members
+// freedom to update progress.
+// Owner always gets full access — isOwner check is first.
+// Tasks with no user_id (created before multi-user) are treated as owner's.
+function enforcePermissions(t){
+  // Owner can always edit everything
+  if(isOwner)return;
+  // If task was created by current user — they can edit everything
+  if(!t||t.user_id===currentUser.id||!t.user_id)return;
+  // If task is assigned to current user by someone else — restrict fields
+  if(t.assignee_id===currentUser.id&&t.user_id!==currentUser.id){
+    const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
+    restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;el.style.opacity='.5';}});
+    document.getElementById('mtitle').textContent='View Task (assigned to you)';
+    const note=document.createElement('div');
+    note.className='permission-note';
+    note.style.cssText='background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:#8a5500;margin-bottom:.75rem;';
+    note.textContent='You can update the status, checklist items and notes on this task.';
+    const firstFr=document.getElementById('fn').closest('.fr');
+    if(firstFr)firstFr.before(note);
+  }
+}
+
+function clearPermissionRestrictions(){
+  const restricted=['fn','fc','fpr','fd','ft','fas','fpc','frm','ftg','fron'];
+  restricted.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=false;el.style.opacity='1';}});
+  document.querySelectorAll('.permission-note').forEach(n=>n.remove());
+}
+
+function renderCatSettings(){
+  document.getElementById('cat-list').innerHTML=cats.map((c,i)=>`
+    <div class="cat-row">
+      <div class="cat-swatch" style="background:${c.color}"></div>
+      <input class="cat-name-inp" type="text" value="${esc(c.name)}" onchange="cats[${i}].name=this.value;saveCats();dash();render();" />
+      <input class="cat-color-inp" type="color" value="${c.color}" oninput="cats[${i}].color=this.value;document.querySelectorAll('.cat-swatch')[${i}].style.background=this.value;" onchange="saveCats();dash();render();" />
+      <button class="cat-del" onclick="delCat(${i})">✕</button>
+    </div>`).join('');
+}
+function addCat(){const nm=document.getElementById('new-cat-name').value.trim();const col=document.getElementById('new-cat-color').value;if(!nm){toast('Enter a name.');return;}if(cats.find(c=>c.name.toLowerCase()===nm.toLowerCase())){toast('Already exists.');return;}cats.push({name:nm,color:col});saveCats();renderCatSettings();document.getElementById('new-cat-name').value='';toast(`"${nm}" added ✓`);}
+function delCat(i){if(!confirm(`Delete "${cats[i].name}"?`))return;cats.splice(i,1);saveCats();renderCatSettings();dash();render();}
+
+function updateClaudePrompt(){
+  const catNames=cats.map(c=>c.name).join(', ');
+  const prompt=`When I ask you to add a TaskMaster task, generate a pre-filled URL in this format: ${APP_URL}?task=TASKNAME&due=YYYY-MM-DD&priority=High&category=Personal&reminder=1day — replacing each value with what I provide. Valid priorities: High, Medium, Low. Valid categories: ${catNames}. Valid reminders: 1hour, 1day, 3days, 1week. Just give me the URL, nothing else.`;
+  const el=document.getElementById('claude-context-prompt');if(el)el.textContent=prompt;
+}
+
+// ── Checklist ─────────────────────────────────────────────────────────
+function renderClEditor(){
+  const ed=document.getElementById('cl-editor');
+  if(!clItems.length){ed.innerHTML='<div style="font-size:.77rem;color:var(--text3);padding:.22rem;">No checklist items yet.</div>';return;}
+  ed.innerHTML=clItems.map((item,i)=>`
+    <div class="cl-edit-item">
+      <input type="text" value="${esc(item.text)}" onchange="clItems[${i}].text=this.value;" />
+      <button class="btn btn-red btn-sm" onclick="clItems.splice(${i},1);renderClEditor();">✕</button>
+    </div>`).join('');
+}
+function addClItem(){const inp=document.getElementById('cl-new-item');const val=inp.value.trim();if(!val)return;clItems.push({text:val,done:false});inp.value='';renderClEditor();}
+
+// ── Recurrence ────────────────────────────────────────────────────────
+function addIntvl(ds,n,u){const d=new Date(ds+'T00:00:00');if(u==='days')d.setDate(d.getDate()+n);else if(u==='weeks')d.setDate(d.getDate()+n*7);else if(u==='months')d.setMonth(d.getMonth()+n);return d.toISOString().split('T')[0];}
+function nextOcc(t){if(!t.recur)return null;const base=t.recurFrom==='completion'?new Date().toISOString().split('T')[0]:(t.due||new Date().toISOString().split('T')[0]);const nd=addIntvl(base,parseInt(t.recurN)||1,t.recurUnit||'days');if(t.recurEnd&&nd>t.recurEnd)return null;return{id:'task_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),name:t.name,category:t.category,priority:t.priority,due:nd,time:t.time||'',status:'Not Started',assignee:t.assignee||'',pct:0,reminder:t.reminder||'',tags:t.tags||[],notes:t.notes||'',checklist:(t.checklist||[]).map(x=>({text:x.text,done:false})),attachments:[],recur:true,recurN:t.recurN,recurUnit:t.recurUnit,recurFrom:t.recurFrom,recurEnd:t.recurEnd||'',recurParentId:t.recurParentId||t.id,created:new Date().toISOString(),updated:new Date().toISOString()};}
+function rlabel(t){return t.recur?`Every ${t.recurN} ${t.recurUnit} ${t.recurFrom==='completion'?'after completion':'from due'}`:''; }
+function togRec(){document.getElementById('rbody').className='rec-body'+(document.getElementById('fron').checked?' vis':'');}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+function toggleDash(){document.getElementById('dash-expanded').classList.toggle('open');document.getElementById('dash-chevron').classList.toggle('open');}
+
+let activePill=null;
+function pillFilter(type){
+  if(activePill===type){clearPillFilter();return;}
+  activePill=type;
+  document.querySelectorAll('.dash-pill').forEach(p=>p.classList.remove('active-filter'));
+  const pillMap={active:'dp0',overdue:'dp1',soon:'dp2',inprogress:'dp3',complete:'dp4',recurring:'dp5'};
+  const labelMap={active:'Active tasks',overdue:'Overdue tasks',soon:'Due this week',inprogress:'In Progress',complete:'Completed',recurring:'Recurring tasks'};
+  if(pillMap[type])document.getElementById(pillMap[type]).classList.add('active-filter');
+  const bar=document.getElementById('active-filter-bar');
+  bar.style.display='flex';
+  document.getElementById('active-filter-label').textContent=labelMap[type]||type;
+  document.getElementById('shd').checked=(type==='complete');
+  render();
+}
+function clearPillFilter(){activePill=null;document.querySelectorAll('.dash-pill').forEach(p=>p.classList.remove('active-filter'));document.getElementById('active-filter-bar').style.display='none';render();}
+
+// ── Task CRUD ─────────────────────────────────────────────────────────
+function openAdd(){eid=null;pendingFiles=[];editingAttachments=[];clItems=[];document.getElementById('mtitle').textContent='Add New Task';clrForm();populateAssigneeSelect(currentUser.id);document.getElementById('fd').value=new Date().toISOString().split('T')[0];document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';clearPermissionRestrictions();renderClEditor();document.getElementById('tmod').style.display='flex';}
+
+function openAddPrefill(t){eid=null;pendingFiles=[];editingAttachments=[];clItems=t.checklist||[];document.getElementById('mtitle').textContent='Add New Task';clrForm();document.getElementById('fn').value=t.name||'';if(t.category&&cats.find(c=>c.name===t.category))document.getElementById('fc').value=t.category;if(t.priority)document.getElementById('fpr').value=t.priority;if(t.due)document.getElementById('fd').value=t.due;if(t.time)document.getElementById('ft').value=t.time;if(t.reminder)document.getElementById('frm').value=t.reminder;if(t.tags&&t.tags.length)document.getElementById('ftg').value=t.tags.join(', ');if(t.notes)document.getElementById('fno').value=t.notes;document.getElementById('att-preview').innerHTML='';document.getElementById('audit-dates').style.display='none';renderClEditor();document.getElementById('tmod').style.display='flex';toast('Pre-filled from Claude — tap Save ✓');}
+
+async function openEdit(id){
+  eid=id;const t=tasks.find(x=>x.id===id);if(!t)return;
+  pendingFiles=[];editingAttachments=JSON.parse(JSON.stringify(t.attachments||[]));clItems=JSON.parse(JSON.stringify(t.checklist||[]));
+  document.getElementById('mtitle').textContent='Edit Task';
+  document.getElementById('fn').value=t.name;document.getElementById('fpr').value=t.priority;
+  document.getElementById('fd').value=t.due||'';document.getElementById('ft').value=t.time||'';
+  document.getElementById('fst').value=t.status;document.getElementById('fpc').value=t.pct||0;
+  document.getElementById('frm').value=t.reminder||'';document.getElementById('ftg').value=(t.tags||[]).join(', ');
+  document.getElementById('fno').value=t.notes||'';
+  populateCatSelect();document.getElementById('fc').value=t.category;
+  populateAssigneeSelect(t.assignee_id||'');
+  document.getElementById('fron').checked=!!t.recur;document.getElementById('frn').value=t.recurN||1;
+  document.getElementById('fru').value=t.recurUnit||'days';document.getElementById('frf').value=t.recurFrom||'due';
+  document.getElementById('fre').value=t.recurEnd||'';
+  togRec();renderAttPreview(editingAttachments);renderClEditor();
+  clearPermissionRestrictions();
+  enforcePermissions(t);
+  // Audit dates
+  const ad=document.getElementById('audit-dates');ad.style.display='';
+  document.getElementById('audit-created').textContent=t.created?fmtDT(t.created):'—';
+  document.getElementById('audit-updated').textContent=t.updated?fmtDT(t.updated):'—';
+  const cw=document.getElementById('audit-completed-wrap');
+  if(t.status==='Complete'&&t.updated){cw.style.display='';document.getElementById('audit-completed').textContent=fmtDT(t.updated);}else{cw.style.display='none';}
+  // Load activity log
+  renderActivityLog([]);
+  loadActivityLog(id).then(log=>renderActivityLog(log));
+  document.getElementById('tmod').style.display='flex';
+}
+
+function renderActivityLog(log){
+  const container=document.getElementById('activity-log');
+  const items=document.getElementById('activity-log-items');
+  if(!container||!items)return;
+  if(!log||!log.length){container.style.display='none';return;}
+  container.style.display='';
+  const actionLabels={created:'Created',updated:'Updated',status_changed:'Status changed',reassigned:'Reassigned',checklist:'Checklist',deleted:'Deleted'};
+  items.innerHTML=log.map(l=>{
+    const who=l.user_email?l.user_email.split('@')[0]:'Unknown';
+    const when=fmtDT(l.created_at);
+    const what=actionLabels[l.action]||l.action;
+    return`<div style="display:flex;gap:.5rem;padding:.22rem 0;border-bottom:1px solid var(--border);font-size:.75rem;flex-wrap:wrap;">
+      <span style="color:var(--text3);white-space:nowrap;">${when}</span>
+      <span style="color:var(--navy);font-weight:600;">${esc(who)}</span>
+      <span style="color:var(--text2);">${what}${l.detail?' — '+esc(l.detail):''}</span>
+    </div>`;
+  }).join('');
+}
+
+function clrForm(){['fn','fas','ftg','fno','ft'].forEach(id=>document.getElementById(id).value='');populateCatSelect();const ct=tab!=='All'&&tab!=='History'&&cats.find(c=>c.name===tab)?tab:(cats[0]&&cats[0].name)||'Personal';document.getElementById('fc').value=ct;document.getElementById('fpr').value='Medium';document.getElementById('fst').value='Not Started';document.getElementById('fpc').value=0;document.getElementById('frm').value='';document.getElementById('fron').checked=false;document.getElementById('frn').value=1;document.getElementById('fru').value='days';document.getElementById('frf').value='due';document.getElementById('fre').value='';togRec();}
+
+// ── WHY: assignee_id stored inside task data ─────────────────────────
+// The assignee name (free text) was the original field. Multi-user release
+// added assignee_id (Supabase user UUID) so the app can filter tasks by
+// actual user identity rather than name string matching.
+// IMPORTANT: Both fields are stored — assignee (display name) and
+// assignee_id (UUID). The RLS policy uses assignee_id for access control.
+// Existing tasks assigned before multi-user release need a SQL migration:
+// update tasks set data = data || jsonb_build_object('assignee_id', 'UUID')
+// where lower(data->>'assignee') = 'membername';
+async function saveTask(){
+  const nm=document.getElementById('fn').value.trim();if(!nm){toast('Please enter a task name.');return;}
+  const ron=document.getElementById('fron').checked;
+  const taskId=eid||'task_'+Date.now();
+  const assigneeId=document.getElementById('fas').value;
+  const assigneeMember=workspaceMembers.find(m=>m.user_id===assigneeId);
+  const assigneeName=assigneeId===currentUser.id?currentUser.email.split('@')[0]:(assigneeMember?assigneeMember.invited_email.split('@')[0]:'');
+  let attachments=editingAttachments.filter(a=>!a._deleted);
+  const toUpload=pendingFiles.filter(f=>f!==null);
+  if(toUpload.length){toast('Uploading files...');for(const f of toUpload){try{attachments.push(await uploadFile(f,taskId));}catch(e){toast(`Failed: ${f.name}`);}}for(const a of editingAttachments.filter(a=>a._deleted)){await deleteAttachment(a.path);}}
+  const t={id:taskId,name:nm,category:document.getElementById('fc').value,priority:document.getElementById('fpr').value,
+    due:document.getElementById('fd').value,time:document.getElementById('ft').value,
+    status:document.getElementById('fst').value,
+    assignee:assigneeName,assignee_id:assigneeId,
+    pct:parseInt(document.getElementById('fpc').value)||0,reminder:document.getElementById('frm').value,
+    tags:document.getElementById('ftg').value.split(',').map(x=>x.trim()).filter(Boolean),
+    notes:document.getElementById('fno').value.trim(),checklist:clItems,attachments,recur:ron,
+    recurN:ron?parseInt(document.getElementById('frn').value)||1:null,
+    recurUnit:ron?document.getElementById('fru').value:null,
+    recurFrom:ron?document.getElementById('frf').value:null,
+    recurEnd:ron?document.getElementById('fre').value:null,
+    recurParentId:eid?(tasks.find(x=>x.id===eid)||{}).recurParentId:null,
+    user_id:eid?(tasks.find(x=>x.id===eid)||{}).user_id||currentUser.id:currentUser.id,
+    created:eid?(tasks.find(x=>x.id===eid)||{}).created||new Date().toISOString():new Date().toISOString(),
+    updated:new Date().toISOString()};
+  if(t.status==='Complete')t.pct=100;
+  // Log activity
+  const prevTask=tasks.find(x=>x.id===eid);
+  if(eid&&prevTask){
+    if(prevTask.status!==t.status)await logActivity(taskId,'status_changed',`${prevTask.status} → ${t.status}`);
+    else if(prevTask.assignee_id!==t.assignee_id)await logActivity(taskId,'reassigned',`Assigned to ${t.assignee||'unassigned'}`);
+    else await logActivity(taskId,'updated','Task details updated');
+  } else {
+    await logActivity(taskId,'created',`Created${t.assignee?' and assigned to '+t.assignee:''}`);
+  }
+  if(eid){const i=tasks.findIndex(x=>x.id===eid);if(i>-1)tasks[i]=t;}else tasks.push(t);
+  localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);cm('tmod');dash();render();toast(eid?'Updated ✓':'Task added ✓');
+}
+
+async function delTask(id){if(!confirm('Delete this task?'))return;const t=tasks.find(x=>x.id===id);if(t&&t.attachments){for(const a of t.attachments){await deleteAttachment(a.path);}}tasks=tasks.filter(t=>t.id!==id);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await deleteTaskRemote(id);dash();render();toast('Deleted.');}
+
+async function togDone(id){const t=tasks.find(x=>x.id===id);if(!t)return;const prev=t.status;t.status=t.status==='Complete'?'Not Started':'Complete';t.pct=t.status==='Complete'?100:0;t.updated=new Date().toISOString();localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);await logActivity(id,'status_changed',`${prev} → ${t.status}`);if(t.status==='Complete'&&t.recur){const nx=nextOcc(t);if(nx){tasks.push(nx);await upsertTask(nx);toast(`Next due ${fmt(nx.due)} ✓`);}else toast(`Complete — no more recurrences.`);}dash();render();}
+
+async function togCheckItem(taskId,idx){const t=tasks.find(x=>x.id===taskId);if(!t||!t.checklist)return;t.checklist[idx].done=!t.checklist[idx].done;t.updated=new Date().toISOString();const total=t.checklist.length,done=t.checklist.filter(x=>x.done).length;if(total>0)t.pct=Math.round(done/total*100);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);await logActivity(taskId,'checklist',`${t.checklist[idx].done?'Completed':'Uncompleted'}: ${t.checklist[idx].text}`);dash();render();}
+
+// ── Render ────────────────────────────────────────────────────────────
+function render(){
+  const srch=document.getElementById('srch').value.toLowerCase();
+  const fp=document.getElementById('fp').value,fs=document.getElementById('fs').value,fo=document.getElementById('fo').value;
+  const shd=document.getElementById('shd').checked;
+  const today=new Date();today.setHours(0,0,0,0);
+  const soon=new Date(today);soon.setDate(soon.getDate()+7);
+  const list=document.getElementById('tlist');
+
+  if(tab==='History'){
+    let h=tasks.filter(t=>t.status==='Complete');
+    if(fp)h=h.filter(t=>t.priority===fp);
+    if(srch)h=h.filter(t=>t.name.toLowerCase().includes(srch)||(t.notes||'').toLowerCase().includes(srch));
+    h.sort((a,b)=>new Date(b.updated||0)-new Date(a.updated||0));
+    if(!h.length){list.innerHTML='<div class="empty"><div style="font-size:2.5rem">🕐</div><p style="margin-top:.5rem;">No completed tasks yet.</p></div>';return;}
+    list.innerHTML='<div class="sec-hdr">Completed — most recent first</div>'+h.map(t=>card(t,false,false)).join('');
+    return;
+  }
+
+  let fl=tasks.filter(t=>{
+    if(activePill){
+      if(activePill==='active'&&t.status==='Complete')return false;
+      if(activePill==='overdue'&&!(t.due&&new Date(t.due+'T00:00:00')<today&&t.status!=='Complete'))return false;
+      if(activePill==='soon'&&!(t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon&&t.status!=='Complete'))return false;
+      if(activePill==='inprogress'&&t.status!=='In Progress')return false;
+      if(activePill==='complete'&&t.status!=='Complete')return false;
+      if(activePill==='recurring'&&!t.recur)return false;
+    } else {
+      if(!shd&&t.status==='Complete')return false;
+      if(fs==='__overdue__'&&!(t.due&&new Date(t.due+'T00:00:00')<today&&t.status!=='Complete'))return false;
+      if(fs==='__soon__'&&!(t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon&&t.status!=='Complete'))return false;
+      if(fs==='__recurring__'&&!t.recur)return false;
+      if(fs==='__unassigned__'&&t.assignee_id)return false;
+      if(fs&&fs.startsWith('__assignee__')&&t.assignee_id!==fs.replace('__assignee__',''))return false;
+      if(fs&&!fs.startsWith('__')&&t.status!==fs)return false;
+    }
+    if(tab==='AssignedToMe'&&t.assignee_id!==currentUser.id)return false;
+    if(tab!=='All'&&tab!=='AssignedToMe'&&t.category!==tab)return false;
+    if(fp&&t.priority!==fp)return false;
+    if(srch&&!t.name.toLowerCase().includes(srch)&&!(t.notes||'').toLowerCase().includes(srch)&&!(t.tags||[]).join(' ').toLowerCase().includes(srch))return false;
+    return true;
+  });
+  const po={High:0,Medium:1,Low:2};
+  fl.sort((a,b)=>{if(fo==='priority')return(po[a.priority]||1)-(po[b.priority]||1);if(fo==='name')return a.name.localeCompare(b.name);if(fo==='pct')return(b.pct||0)-(a.pct||0);if(!a.due)return 1;if(!b.due)return-1;return new Date(a.due)-new Date(b.due);});
+  if(!fl.length){list.innerHTML='<div class="empty"><div style="font-size:2.5rem">✅</div><p style="margin-top:.5rem;">No tasks here — add one!</p></div>';return;}
+  list.innerHTML=fl.map(t=>{const d=t.due?new Date(t.due+'T00:00:00'):null;const od=d&&d<today&&t.status!=='Complete';const sn=d&&d>=today&&d<=soon&&t.status!=='Complete';return card(t,od,sn);}).join('');
+}
+
+function card(t,od,sn){
+  const c=getCat(t.category);
+  const dl=t.due?fmt(t.due):'';
+  const tl=t.time?` ${t.time}`:'';
+  const dc=od?'od':sn?'sn':'';
+  const rm={'':'','1hour':'⏰ 1hr','1day':'⏰ 1d','3days':'⏰ 3d','1week':'⏰ 1wk'};
+  const pc=t.pct===100?'#5BAD6F':t.pct>50?'#4F86C6':'#E8A838';
+  const cl=t.checklist||[];
+  const clDone=cl.filter(x=>x.done).length;
+  const clHtml=cl.length?`<div class="checklist">${cl.map((item,i)=>`<div class="cl-item ${item.done?'cl-done':''}"><input type="checkbox" ${item.done?'checked':''} onclick="togCheckItem('${t.id}',${i})" /><span>${esc(item.text)}</span></div>`).join('')}<div class="cl-progress">${clDone}/${cl.length} done</div></div>`:'';
+  const atts=t.attachments||[];
+  const attHtml=atts.length?`<div class="attachments">${atts.map(a=>`<a class="att-chip" href="${a.url}" target="_blank">📎 ${esc(a.name)}</a>`).join('')}</div>`:'';
+  return`<div class="tc ${t.status==='Complete'?'done':''} ${od?'od-card':''}" data-cat="${t.category}" data-id="${t.id}" style="border-left-color:${c.color};">
+  <div class="chk ${t.status==='Complete'?'on':''}" onclick="togDone('${t.id}')" style="${t.status!=='Complete'?'border-color:'+c.color+'40;':''}">${t.status==='Complete'?'✓':''}</div>
+  <div class="t-body">
+    <div class="t-name">${esc(t.name)}</div>
+    <div class="t-meta">
+      <span class="b" style="background:${hexRgba(c.color,.12)};color:${c.color};">${esc(t.category)}</span>
+      <span class="b ${t.priority==='High'?'b-ph':t.priority==='Medium'?'b-pm':'b-pl'}">${t.priority}</span>
+      ${dl?`<span class="b b-due ${dc}">${od?'⚠ ':''}${dl}${tl}</span>`:''}
+      ${t.assignee?`<span class="b b-as" style="cursor:pointer;" onclick="filterByAssignee('${t.assignee_id||''}')" title="Filter by assignee">${t.assignee_id===currentUser.id?'👤 Assigned to me':'👤 '+esc(t.assignee)}</span>`:''}
+      ${t.reminder&&rm[t.reminder]?`<span class="b b-rm">${rm[t.reminder]}</span>`:''}
+      ${t.recur?`<span class="b b-rc">🔁 ${rlabel(t)}</span>`:''}
+      ${cl.length?`<span class="b b-hi">☑ ${clDone}/${cl.length}</span>`:''}
+      ${atts.length?`<span class="b b-as">📎 ${atts.length}</span>`:''}
+      ${(t.tags||[]).map(g=>`<span class="b b-tg">#${esc(g)}</span>`).join('')}
+      ${t.recurParentId?`<span class="b b-hi">occurrence</span>`:''}
+    </div>
+    <div class="prog-row">
+      <div class="prog-track"><div class="prog-fill" style="width:${t.pct||0}%;background:${pc}"></div></div>
+      <span class="prog-pct">${t.pct||0}%</span>
+      <span style="font-size:.69rem;color:var(--text3);margin-left:.18rem;">${t.status}</span>
+    </div>
+    ${t.notes?`<div class="t-notes">${esc(t.notes)}</div>`:''}
+    ${clHtml}${attHtml}
+  </div>
+  <div class="t-acts">
+    <button class="ib" onclick="openEdit('${t.id}')" title="Edit">✏️</button>
+    <button class="ib" onclick="shareTask('${t.id}')" title="Share task">📤</button>
+    <button class="ib" onclick="printTask('${t.id}')" title="Print job sheet">🖨️</button>
+    <button class="ib" onclick="delTask('${t.id}')" title="Delete">🗑️</button>
+  </div>
+</div>`;
+}
+
+function filterByAssignee(assigneeId){
+  const sel=document.getElementById('fs');if(!sel)return;
+  if(!assigneeId){sel.value='__unassigned__';}
+  else{sel.value='__assignee__'+assigneeId;}
+  render();
+  // Scroll to task list
+  document.getElementById('tlist').scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Filtered by assignee — clear with the status filter');
+}
+
+function selTab(el){document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active');t.style.background='';t.style.color='';});el.classList.add('active');tab=el.dataset.cat;if(tab!=='All'&&tab!=='History'){const c=getCat(tab);el.style.background=c.color;el.style.color='#fff';}render();}
+
+// ── Calendar ──────────────────────────────────────────────────────────
+function setCalView(v){calView=v;document.getElementById('cal-btn-week').className='cal-view-btn'+(v==='week'?' active':'');document.getElementById('cal-btn-month').className='cal-view-btn'+(v==='month'?' active':'');renderCal();}
+function calNav(d){if(calView==='week')calDate=new Date(calDate.getTime()+d*7*86400000);else{calDate.setMonth(calDate.getMonth()+d);calDate=new Date(calDate);}renderCal();}
+function calToday(){calDate=new Date();renderCal();}
+
+function renderCal(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const wrap=document.getElementById('cal-grid-wrap');
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Build task map including completed tasks (shown grey)
+  const tasksByDate={};
+  tasks.filter(t=>t.due).forEach(t=>{
+    if(!tasksByDate[t.due])tasksByDate[t.due]=[];
+    tasksByDate[t.due].push(t);
+  });
+
+  // Helper to open add task with date pre-filled
+  function calAddTask(ds){
+    cm('smod'); // close settings if open
+    setTimeout(()=>{
+      openAdd();
+      document.getElementById('fd').value=ds;
+    },50);
+  }
+
+  // Build task dot HTML with overdue/complete styling
+  function taskDot(t){
+    const c=getCat(t.category);
+    const d=t.due?new Date(t.due+'T00:00:00'):null;
+    const isOd=d&&d<today&&t.status!=='Complete';
+    const isDone=t.status==='Complete';
+    const bg=isDone?'#F0F2F8':isOd?'#FCEBEB':hexRgba(c.color,.15);
+    const col=isDone?'#9AA0BC':isOd?'#C03030':c.color;
+    const strike=isDone?'text-decoration:line-through;':'' ;
+    return `<div class="cal-task-dot" style="background:${bg};color:${col};${strike}" onclick="event.stopPropagation();openEdit('${t.id}')" title="${esc(t.name)}">${isDone?'✓ ':''}${esc(t.name)}</div>`;
+  }
+
+  if(calView==='week'){
+    const dow=calDate.getDay();
+    const weekStart=new Date(calDate);weekStart.setDate(calDate.getDate()-dow);
+    const weekDates=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
+    document.getElementById('cal-title').textContent=`${fmt(weekDates[0].toISOString().split('T')[0])} — ${fmt(weekDates[6].toISOString().split('T')[0])}`;
+    let html='<div class="cal-grid weekly">';
+    // On mobile show short day names
+    days.forEach(d=>html+=`<div class="cal-day-hdr">${d}</div>`);
+    weekDates.forEach(d=>{
+      const ds=d.toISOString().split('T')[0];
+      const isToday=d.getTime()===today.getTime();
+      const dayTasks=tasksByDate[ds]||[];
+      const hasOverdue=dayTasks.some(t=>new Date(t.due+'T00:00:00')<today&&t.status!=='Complete');
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasOverdue?'od-day':''}" onclick="calAddTask('${ds}')">
+        <div class="cal-date">${d.getDate()}</div>
+        ${dayTasks.slice(0,4).map(t=>taskDot(t)).join('')}
+        ${dayTasks.length>4?`<div class="cal-more">+${dayTasks.length-4} more</div>`:''}
+      </div>`;
+    });
+    html+='</div>';
+    wrap.innerHTML=html;
+    // Make calAddTask available globally for onclick
+    wrap.calAddTask=calAddTask;
+  } else {
+    const year=calDate.getFullYear(),month=calDate.getMonth();
+    const firstDay=new Date(year,month,1);const lastDay=new Date(year,month+1,0);
+    document.getElementById('cal-title').textContent=firstDay.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+    let html='<div class="cal-grid monthly">';
+    days.forEach(d=>html+=`<div class="cal-day-hdr">${d}</div>`);
+    for(let i=0;i<firstDay.getDay();i++)html+='<div class="cal-cell other-month"></div>';
+    for(let d=1;d<=lastDay.getDate();d++){
+      const date=new Date(year,month,d);const ds=date.toISOString().split('T')[0];
+      const isToday=date.getTime()===today.getTime();
+      const dayTasks=tasksByDate[ds]||[];
+      const hasOverdue=dayTasks.some(t=>new Date(t.due+'T00:00:00')<today&&t.status!=='Complete');
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasOverdue?'od-day':''}" onclick="calAddTask('${ds}')">
+        <div class="cal-date">${d}</div>
+        ${dayTasks.slice(0,2).map(t=>taskDot(t)).join('')}
+        ${dayTasks.length>2?`<div class="cal-more">+${dayTasks.length-2}</div>`:''}
+      </div>`;
+    }
+    html+='</div>';wrap.innerHTML=html;
+  }
+
+  // Expose calAddTask for inline onclick handlers
+  window.calAddTask=calAddTask;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+// ── WHY: Done Today not all-time completed ───────────────────────────
+// Originally showed total completed tasks which grew to hundreds and became
+// meaningless. Changed to show tasks completed today only — much more useful
+// as a daily progress indicator. Uses local date (not UTC) to correctly
+// handle Australian timezone (AEST = UTC+10).
+function dash(){
+  const today=new Date();today.setHours(0,0,0,0);
+  // Use local date string to avoid UTC offset issues (important for Australian timezones)
+  const todayLocal=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const soon=new Date(today);soon.setDate(soon.getDate()+7);
+  const act=tasks.filter(t=>t.status!=='Complete');
+  // Compare using local date by converting the stored UTC timestamp to local date
+  const completedToday=tasks.filter(t=>{
+    if(t.status!=='Complete'||!t.updated)return false;
+    const updLocal=new Date(t.updated);
+    const updStr=`${updLocal.getFullYear()}-${String(updLocal.getMonth()+1).padStart(2,'0')}-${String(updLocal.getDate()).padStart(2,'0')}`;
+    return updStr===todayLocal;
+  }).length;
+  const vals=[act.length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today).length,act.filter(t=>t.due&&new Date(t.due+'T00:00:00')>=today&&new Date(t.due+'T00:00:00')<=soon).length,tasks.filter(t=>t.status==='In Progress').length,completedToday,act.filter(t=>t.recur).length];
+  vals.forEach((v,i)=>{const e=document.getElementById('s'+i);if(e)e.textContent=v;const p=document.getElementById('ds'+i);if(p)p.textContent=v;});
+  const catCounts=cats.map(c=>({c,n:act.filter(t=>t.category===c.name).length}));
+  const mx=Math.max(...catCounts.map(x=>x.n),1);
+  document.getElementById('chart-cat').innerHTML=catCounts.map(({c,n})=>`<div class="bar-row"><span class="bar-lbl">${esc(c.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/mx*100)}%;background:${c.color}"></div></div><span class="bar-n">${n}</span></div>`).join('');
+  const pc={High:0,Medium:0,Low:0};act.forEach(t=>{if(pc[t.priority]!==undefined)pc[t.priority]++;});
+  const tot=Object.values(pc).reduce((a,b)=>a+b,0)||1;
+  const pcc={High:'#E24B4A',Medium:'#EF9F27',Low:'#5BAD6F'};
+  let ang=-Math.PI/2,pts='';
+  Object.entries(pc).forEach(([p,n])=>{const sl=(n/tot)*2*Math.PI;if(!sl)return;const x1=50+45*Math.cos(ang),y1=50+45*Math.sin(ang),x2=50+45*Math.cos(ang+sl),y2=50+45*Math.sin(ang+sl);pts+=`<path d="M50,50 L${x1.toFixed(1)},${y1.toFixed(1)} A45,45 0 ${sl>Math.PI?1:0},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${pcc[p]}" opacity=".9"/>`;ang+=sl;});
+  document.getElementById('pie').innerHTML=pts||'<circle cx="50" cy="50" r="45" fill="#eee"/>';
+  document.getElementById('pie-leg').innerHTML=Object.entries(pc).map(([p,n])=>`<div class="pie-li"><div class="pie-dot" style="background:${pcc[p]}"></div>${p}: ${n}</div>`).join('');
+}
+
+// ── Print ─────────────────────────────────────────────────────────────
+function printTask(id, fromModal){
+  const t = id ? tasks.find(x=>x.id===id) : null;
+  if(!t && !fromModal){ toast('Task not found.'); return; }
+  const task = t || {
+    name: document.getElementById('fn').value||'Task Preview',
+    category: document.getElementById('fc').value,
+    priority: document.getElementById('fpr').value,
+    due: document.getElementById('fd').value,
+    time: document.getElementById('ft').value,
+    status: document.getElementById('fst').value,
+    assignee: document.getElementById('fas').value,
+    pct: document.getElementById('fpc').value||0,
+    notes: document.getElementById('fno').value,
+    checklist: clItems,
+    tags: document.getElementById('ftg').value.split(',').map(x=>x.trim()).filter(Boolean),
+    attachments: []
+  };
+  const c = getCat(task.category);
+  const cl = task.checklist||[];
+  const area = document.getElementById('print-area');
+  area.style.display='';
+  area.innerHTML=`<div class="print-sheet">
+    <div class="print-header">
+      <div><h1>📋 TaskMaster Pro</h1><div style="font-size:.8rem;opacity:.7;margin-top:.2rem;">Job Sheet</div></div>
+      <div class="ph-meta">Printed: ${new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}<br>${new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+    <div class="print-cat-band" style="background:${c.color};"></div>
+    <div class="print-body">
+      <div class="print-title">${esc(task.name)}</div>
+      <div class="print-fields">
+        <div class="print-field"><div class="print-field-label">Category</div><div class="print-field-value">${esc(task.category)}</div></div>
+        <div class="print-field"><div class="print-field-label">Priority</div><div class="print-field-value">${esc(task.priority)}</div></div>
+        <div class="print-field"><div class="print-field-label">Due Date</div><div class="print-field-value">${task.due?fmt(task.due)+(task.time?' at '+task.time:''):'—'}</div></div>
+        <div class="print-field"><div class="print-field-label">Status</div><div class="print-field-value">${esc(task.status)}</div></div>
+        <div class="print-field"><div class="print-field-label">Assigned To</div><div class="print-field-value">${task.assignee||'—'}</div></div>
+        <div class="print-field"><div class="print-field-label">% Complete</div><div class="print-field-value">${task.pct||0}%</div></div>
+        ${task.tags&&task.tags.length?`<div class="print-field" style="grid-column:1/-1;"><div class="print-field-label">Tags</div><div class="print-field-value">${task.tags.map(t=>`#${esc(t)}`).join(', ')}</div></div>`:''}
+      </div>
+      ${cl.length?`<div class="print-section"><div class="print-section-title">Checklist</div>${cl.map(item=>`<div class="print-cl-item"><div class="print-cl-box">${item.done?'✓':''}</div><span style="${item.done?'text-decoration:line-through;color:#9AA0BC;':''}">${esc(item.text)}</span></div>`).join('')}</div>`:''}
+      ${task.notes?`<div class="print-section"><div class="print-section-title">Notes</div><div class="print-notes">${esc(task.notes)}</div></div>`:''}
+      ${task.attachments&&task.attachments.length?`<div class="print-section"><div class="print-section-title">Attachments</div>${task.attachments.map(a=>`<div style="font-size:.85rem;padding:.2rem 0;color:#5A6080;">📎 ${esc(a.name)}</div>`).join('')}</div>`:''}
+      <div class="print-footer"><span>TaskMaster Pro</span><span>ID: ${task.id||'new'}</span></div>
+    </div>
+  </div>`;
+  window.print();
+  setTimeout(()=>{area.style.display='none';area.innerHTML='';},1000);
+}
+
+function printSummary(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const soon=new Date(today);soon.setDate(soon.getDate()+7);
+  const toprint=tasks.filter(t=>t.status!=='Complete');
+  if(!toprint.length){toast('No active tasks to print.');return;}
+  toprint.sort((a,b)=>{if(!a.due)return 1;if(!b.due)return-1;return new Date(a.due)-new Date(b.due);});
+  const area=document.getElementById('print-area');
+  area.style.display='';
+  area.innerHTML=`<div class="print-sheet">
+    <div class="print-header">
+      <div><h1>📋 TaskMaster Pro</h1><div style="font-size:.8rem;opacity:.7;margin-top:.2rem;">Task Summary — ${toprint.length} active tasks</div></div>
+      <div class="ph-meta">Printed: ${new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}</div>
+    </div>
+    <div class="print-body">
+      <table class="print-summary-table">
+        <thead><tr><th>Task</th><th>Category</th><th>Priority</th><th>Due</th><th>Status</th><th>%</th></tr></thead>
+        <tbody>${toprint.map(t=>`<tr><td>${esc(t.name)}${t.checklist&&t.checklist.length?` <span style="font-size:.75rem;color:#9AA0BC;">(${t.checklist.filter(x=>x.done).length}/${t.checklist.length})</span>`:''}</td><td>${esc(t.category)}</td><td>${esc(t.priority)}</td><td>${t.due?fmt(t.due)+(t.time?' '+t.time:''):'—'}</td><td>${esc(t.status)}</td><td>${t.pct||0}%</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="print-footer" style="margin-top:1rem;"><span>TaskMaster Pro</span><span>${new Date().toLocaleDateString('en-AU')}</span></div>
+    </div>
+  </div>`;
+  window.print();
+  setTimeout(()=>{area.style.display='none';area.innerHTML='';},1000);
+}
+
+// ── Share task ────────────────────────────────────────────────────────
+async function shareTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const cl=t.checklist||[];
+  const clText=cl.length?'\n\nChecklist:\n'+cl.map(i=>(i.done?'✅ ':'☐ ')+i.text).join('\n'):'';
+  const attText=t.attachments&&t.attachments.length?'\n\nAttachments:\n'+t.attachments.map(a=>'📎 '+a.name).join('\n'):'';
+  const text=`📋 ${t.name}${t.due?'\nDue: '+fmt(t.due)+(t.time?' at '+t.time:''):''}${t.priority?'\nPriority: '+t.priority:''}${t.status?'\nStatus: '+t.status:''}${t.assignee?'\nAssigned to: '+t.assignee:''}${t.notes?'\n\nNotes: '+t.notes:''}${clText}${attText}\n\n— TaskMaster`;
+  if(navigator.share){
+    try{await navigator.share({title:t.name,text});toast('Shared ✓');}
+    catch(e){if(e.name!=='AbortError')copyToClipboard(text);}
+  } else {
+    copyToClipboard(text);
+  }
+}
+
+function copyToClipboard(text){
+  navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard ✓')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied to clipboard ✓');
+  });
+}
+
+// ── Weekly email backup ───────────────────────────────────────────────
+// ── WHY: Weekly email backup ──────────────────────────────────────────
+// Supabase is reliable but user wanted peace of mind. Weekly email backup
+// fires every 7 days when app is opened. Includes all task details and
+// checklists formatted as readable text. Sits in email inbox as a record.
+// Uses same EmailJS service as reminders. tm_last_backup in localStorage
+// tracks last send date.
+function checkWeeklyBackup(){
+  if(!cfg.email)return;
+  const lastBackup=localStorage.getItem('tm_last_backup');
+  const now=new Date();
+  if(lastBackup){const daysSince=(now-new Date(lastBackup))/(1000*60*60*24);if(daysSince<7)return;}
+  sendWeeklyBackup();localStorage.setItem('tm_last_backup',now.toISOString());
+}
+
+function sendWeeklyBackup(){
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+  s.onload=()=>{
+    emailjs.init(EJS_KEY);
+    const active=tasks.filter(t=>t.status!=='Complete');
+    const completed=tasks.filter(t=>t.status==='Complete');
+    const lines=[];
+    lines.push(`TaskMaster Weekly Backup — ${new Date().toLocaleDateString('en-AU')}`);
+    lines.push(`Total: ${tasks.length} tasks (${active.length} active, ${completed.length} completed)\n`);
+    lines.push('═══ ACTIVE TASKS ═══');
+    active.forEach(t=>{
+      lines.push(`\n▸ ${t.name}`);
+      lines.push(`  ${t.category} | ${t.priority} | ${t.status}`);
+      if(t.due)lines.push(`  Due: ${fmt(t.due)}${t.time?' at '+t.time:''}`);
+      if(t.assignee)lines.push(`  Assigned: ${t.assignee}`);
+      if(t.notes)lines.push(`  Notes: ${t.notes}`);
+      if(t.checklist&&t.checklist.length){
+        lines.push(`  Checklist (${t.checklist.filter(x=>x.done).length}/${t.checklist.length}):`);
+        t.checklist.forEach(i=>lines.push(`    ${i.done?'✅':'☐'} ${i.text}`));
+      }
+      if(t.recur)lines.push(`  Recurring: every ${t.recurN} ${t.recurUnit}`);
+    });
+    if(completed.length){
+      lines.push('\n═══ COMPLETED TASKS ═══');
+      completed.slice(0,20).forEach(t=>{lines.push(`\n✅ ${t.name} (${t.category})`);if(t.updated)lines.push(`   Completed: ${fmtDT(t.updated)}`);});
+      if(completed.length>20)lines.push(`\n...and ${completed.length-20} more`);
+    }
+    lines.push('\n— TaskMaster Auto Backup');
+    emailjs.send(EJS_SVC,EJS_TPL,{to_email:cfg.email,subject:`TaskMaster Backup ${new Date().toLocaleDateString('en-AU')} — ${active.length} active tasks`,message:lines.join('\n')})
+      .then(()=>toast('Weekly backup sent ✓')).catch(e=>console.log('Backup error:',e));
+  };
+  document.head.appendChild(s);
+}
+
+// ── Reminders ─────────────────────────────────────────────────────────
+// ── WHY: Reminders fire once per day on app open ─────────────────────
+// True background notifications require a push notification service (Firebase
+// etc) and a backend. Too complex for a single HTML file app.
+// Instead: check once per day when the app is opened. localStorage key
+// tm_lc stores the last check date. If already checked today, skip.
+// This means reminders only work if you open the app — acceptable tradeoff.
+// Email delivery means the reminder stays in inbox even if app closes.
+function checkReminders(){if(!cfg.email)return;const td=new Date().toDateString();if(localStorage.getItem('tm_lc')===td)return;const now=new Date();const due=tasks.filter(t=>{if(!t.due||!t.reminder||t.status==='Complete')return false;const d=new Date(t.due+'T00:00:00');const h={'1hour':1,'1day':24,'3days':72,'1week':168};const hh=h[t.reminder];if(!hh)return false;const diff=(d-now)/3600000;return diff>=0&&diff<=hh;});if(due.length)sendEmail(due);localStorage.setItem('tm_lc',td);}
+function sendEmail(items){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';s.onload=()=>{emailjs.init(EJS_KEY);const body=items.map(t=>`• ${t.name} — Due: ${t.due}${t.time?' at '+t.time:''} (${t.priority})${t.recur?' 🔁':''}`).join('\n');emailjs.send(EJS_SVC,EJS_TPL,{to_email:cfg.email,subject:`TaskMaster: ${items.length} task${items.length>1?'s':''} due soon`,message:`Hi,\n\nTasks due soon:\n\n${body}\n\n— TaskMaster Pro`}).then(()=>toast('Reminder sent ✓')).catch(e=>toast('Email error: '+(e.text||e)));};document.head.appendChild(s);}
+function testEmail(){saveCfgLocal();sendEmail([{name:'Test Reminder',due:new Date().toISOString().split('T')[0],time:'',priority:'High',recur:false}]);}
+
+// ── Claude import ─────────────────────────────────────────────────────
+function copyPrompt(){const el=document.getElementById('claude-context-prompt');navigator.clipboard.writeText(el.textContent).then(()=>{const btn=document.getElementById('copy-prompt-btn');btn.textContent='Copied!';setTimeout(()=>btn.textContent='Copy Prompt',2000);}).catch(()=>toast('Select and copy manually.'));}
+// ── Natural language import ───────────────────────────────────────────
+async function nlImport(){
+  const raw=document.getElementById('nl-input').value.trim();
+  if(!raw){toast('Type a task description first.');return;}
+  const btn=document.getElementById('nl-btn');
+  btn.textContent='Parsing...';btn.disabled=true;
+  const catNames=cats.map(c=>c.name).join(', ');
+  const today=new Date().toISOString().split('T')[0];
+  const prompt=`Parse this task description into JSON. Today's date is ${today}.
+Task description: "${raw}"
+
+Return ONLY a JSON object with these fields (no markdown, no explanation):
+{
+  "name": "task name",
+  "category": "one of: ${catNames}",
+  "priority": "High, Medium, or Low",
+  "due": "YYYY-MM-DD or empty string",
+  "time": "HH:MM or empty string",
+  "reminder": "1hour, 1day, 3days, 1week or empty string",
+  "tags": [],
+  "notes": "",
+  "checklist": []
+}
+If a field is not mentioned use sensible defaults. Category defaults to Personal if unclear.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:500,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'';
+    const clean=text.replace(/```json|```/g,'').trim();
+    const d=JSON.parse(clean);
+    const t={id:'task_'+Date.now(),name:d.name||raw,category:d.category||'Personal',
+      priority:d.priority||'Medium',due:d.due||'',time:d.time||'',
+      status:'Not Started',assignee:'',pct:0,reminder:d.reminder||'',
+      tags:d.tags||[],notes:d.notes||'',checklist:d.checklist||[],
+      attachments:[],recur:false,recurN:null,recurUnit:null,recurFrom:'due',
+      recurEnd:'',created:new Date().toISOString(),updated:new Date().toISOString()};
+    // Close settings and open pre-filled add form
+    cm('smod');
+    setTimeout(()=>{openAddPrefill(t);},200);
+    document.getElementById('nl-input').value='';
+    toast(`Parsed: "${t.name}" — check and save ✓`);
+  }catch(e){
+    toast('Could not parse — try the JSON import instead.');
+    console.log('NL parse error:',e);
+  }
+  btn.textContent='✨ Parse Task';btn.disabled=false;
+}
+
+async function claudeImport(){const raw=document.getElementById('cjson').value.trim();if(!raw){toast('Paste JSON first.');return;}try{const d=JSON.parse(raw);const t={id:'task_'+Date.now(),name:d.name||'Unnamed',category:d.category||'Personal',priority:d.priority||'Medium',due:d.due||'',time:d.time||'',status:d.status||'Not Started',assignee:d.assignee||'',pct:parseInt(d.pct)||0,reminder:d.reminder||'',tags:typeof d.tags==='string'?d.tags.split(',').map(x=>x.trim()).filter(Boolean):(d.tags||[]),notes:d.notes||'',checklist:[],attachments:[],recur:!!d.recur,recurN:d.recurN||null,recurUnit:d.recurUnit||null,recurFrom:d.recurFrom||'due',recurEnd:d.recurEnd||'',created:new Date().toISOString(),updated:new Date().toISOString()};tasks.push(t);localStorage.setItem('tm_tasks',JSON.stringify(tasks));await upsertTask(t);dash();render();document.getElementById('cjson').value='';toast(`"${t.name}" imported ✓`);}catch(e){toast('Invalid JSON.');}}
+
+// ── Settings ──────────────────────────────────────────────────────────
+function switchSettTab(tab){
+  document.getElementById('spanel-settings').style.display=tab==='settings'?'':'none';
+  document.getElementById('spanel-help').style.display=tab==='help'?'':'none';
+  document.getElementById('stab-settings').className='sett-tab'+(tab==='settings'?' active':'');
+  document.getElementById('stab-help').className='sett-tab'+(tab==='help'?' active':'');
+}
+
+function renderTeamSettings(){
+  const list=document.getElementById('team-member-list');
+  if(!list)return;
+  // Show team section only to owner
+  const teamSection=document.getElementById('team-section');
+  if(teamSection)teamSection.style.display=isOwner?'':'none';
+  // Show role label
+  const roleLabel=document.getElementById('role-label');
+  if(roleLabel)roleLabel.textContent=isOwner?'You are the workspace owner':'You are a workspace member';
+  if(!workspaceMembers.length){list.innerHTML='<div style="font-size:.82rem;color:var(--text3);">No team members yet. Invite someone below.</div>';return;}
+  list.innerHTML=workspaceMembers.map(m=>`
+    <div class="cat-row">
+      <div style="flex:1;">
+        <div style="font-size:.84rem;font-weight:600;color:var(--text);">${esc(m.invited_email)}</div>
+        <div style="font-size:.72rem;color:var(--text3);">${m.user_id?'✅ Active member':'⏳ Invite pending'}</div>
+      </div>
+      <button class="cat-del" onclick="removeMember('${esc(m.invited_email)}')">✕</button>
+    </div>`).join('');
+}
+
+async function doInvite(){
+  const email=document.getElementById('invite-email').value.trim();
+  if(!email||!email.includes('@')){toast('Please enter a valid email.');return;}
+  if(email.toLowerCase()===currentUser.email.toLowerCase()){toast('That\'s your own email!');return;}
+  await inviteMember(email);
+  document.getElementById('invite-email').value='';
+  renderTeamSettings();
+}
+
+function openSettings(){
+  document.getElementById('sem').value=cfg.email||'';
+  if(currentUser)document.getElementById('acct-email').textContent=currentUser.email;
+  renderCatSettings();
+  renderTeamSettings();
+  updateClaudePrompt();
+  document.getElementById('smod').style.display='flex';
+}
+function saveCfgLocal(){cfg.email=document.getElementById('sem').value.trim();}
+function saveSettings(){saveCfgLocal();localStorage.setItem('tm_cfg',JSON.stringify(cfg));saveSettingsRemote();toast('Settings saved ✓');}
+
+// ── Data ──────────────────────────────────────────────────────────────
+function exportData(){const b=new Blob([JSON.stringify({tasks,cats},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='taskmaster_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
+async function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.tasks){tasks=d.tasks;if(d.cats)cats=d.cats;localStorage.setItem('tm_tasks',JSON.stringify(tasks));localStorage.setItem('tm_cats',JSON.stringify(cats));for(const t of tasks){await upsertTask(t);}await saveCatsRemote();buildTabs();dash();render();toast('Imported ✓');}}catch{toast('Invalid file.');}};r.readAsText(f);}
+async function clearAll(){if(!confirm('Delete ALL tasks? Cannot be undone.'))return;if(!sb||!currentUser)return;await sb.from('tasks').delete().eq('user_id',currentUser.id);tasks=[];localStorage.setItem('tm_tasks','[]');dash();render();toast('Cleared.');}
+
+// ── Utils ─────────────────────────────────────────────────────────────
+function cm(id){document.getElementById(id).style.display='none';}
+
+function cmTask(){
+  const hasChanges=document.getElementById('fn').value.trim()!==''||
+    clItems.length>0||pendingFiles.filter(f=>f!==null).length>0||
+    document.getElementById('fno').value.trim()!=='';
+  if(hasChanges&&!confirm('You have unsaved changes. Close without saving?'))return;
+  cm('tmod');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):''; }
+function fmtDT(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});}
+function hexRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500);}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
+  if(e.target===o){if(o.id==='tmod')cmTask();else o.style.display='none';}
+}));
+// Android back button intercept
+window.addEventListener('popstate',()=>{
+  if(document.getElementById('tmod').style.display!=='none'){cmTask();history.pushState(null,'',location.href);}
+});
+history.pushState(null,'',location.href);
+
+// Register service worker for PWA
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/TaskMaster/sw.js')
+      .then(()=>console.log('TaskMaster SW registered'))
+      .catch(e=>console.log('SW registration failed:',e));
+  });
+}
+
+init();
+</script>
+</body>
+</html>
