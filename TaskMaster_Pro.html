@@ -1158,7 +1158,16 @@ async function loadActivityLog(taskId){
 async function upsertTask(t){
   if(!sb||!currentUser)return;
   setDS('syncing','Saving...');
-  try{await sb.from('tasks').upsert({id:t.id,user_id:currentUser.id,data:t,updated_at:new Date().toISOString()},{onConflict:'id'});setDS('on','Saved');}
+  try{
+    if(isOwner){
+      // Owner can update the full row including user_id
+      await sb.from('tasks').upsert({id:t.id,user_id:currentUser.id,data:t,updated_at:new Date().toISOString()},{onConflict:'id'});
+    } else {
+      // Member can ONLY update the data column, not user_id. This prevents a member from taking ownership of the task.
+      await sb.from('tasks').update({data:t,updated_at:new Date().toISOString()}).eq('id',t.id);
+    }
+    setDS('on','Saved');
+  }
   catch(e){setDS('','Save error');toast('Save failed.');}
 }
 
